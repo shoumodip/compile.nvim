@@ -53,5 +53,13 @@ Set these options wherever and whenever you want.
 - `g:compile#open_command` The command used for opening the compilation window. Defaults to `split`.
 - `g:compile#previous_command` The command used in the previous compilation window and offered as a suggestion during the input. Blank by default.
 
+## Highlights
+- `compileError` links to `WarningMsg`
+- `compileGood` links to `Function`
+- `compileFile` links to `Identifier`
+- `compileFileNum` links to `Special`
+- `compileCommand` links to `Function`
+- `compilePrompt` links to `Function`
+
 ## Prerequisites
 - The `sh` interpreter (`Bash`, `Dash`, whatever)
