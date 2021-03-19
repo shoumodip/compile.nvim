@@ -1,55 +1,61 @@
 " Set the statusline of the current window {{{
-function! compile#set_status(main, ...)
-  let text = "Compilation: [" . a:main
+function! compile#set_status(text, ...)
+  let text = "Compilation: "
 
   if exists("a:1")
-    if exists("a:2")
-      let text .= "%#" . a:2 . "#"
-    endif
-
-    let text .= a:1
+    let text .= "%#" . a:1 . "#"
   endif
 
-  let text .= "%*]"
+  let text .= a:text . "%*"
   let &l:statusline = text
-endfunction
-" }}}
-" The timer for measuring the time taken by the script {{{
-function! compile#timer(timer)
-  let b:compile_time += 1
 endfunction
 " }}}
 " Handler for output of the compilation {{{
 function! compile#handler_output(job_id, data, event) dict
-  let data = a:data[:-2]
 
-  if len(data) == 0
-    if strlen(a:data[0]) > 0
-      let data = a:data[:-1]
-    endif
-  else
-    call add(data, "")
+  let data = join(a:data, "\n")
+  let data_list = split(data, "\n")
+
+  if strlen(data) == 0
+    return
   endif
 
-  call appendbufline(self.buffer, "$", data)
+  if count(data, "\n") == len(data_list)
+    call appendbufline(self.buffer, "$", data_list[:-1])
+    let b:compile_buffered = 0
+  else
+    let lines = getbufline(self.buffer, 1, "$")
+    let len = len(lines)
+
+    if len < 3
+      call appendbufline(self.buffer, "$", repeat([""], 3 - len))
+    endif
+
+    call setbufline(self.buffer, "$", split(lines[-1] . data, "\n"))
+
+    let b:compile_buffered = 1
+  endif
+
 endfunction
 " }}}
 " Handler for the exit event of the compilation {{{
 function compile#handler_exit(job_id, data, event) dict
-  call timer_stop(b:compile_timer)
+  if !exists("b:compile_command")
+    return
+  endif
 
-  let msg = a:data == 0 ? "succeeded" : "failed"
+  let msg = a:data == 0 ? "finished" : "failed"
   let msg = "Command " . msg . " with exit value " . a:data
-  let msg .= " in " . b:compile_time . " second"
+  let msg .= " at " . strftime("%H:%M:%S %a %d %b %Y")
 
-  if b:compile_time != 1
-    let msg .= "s"
+  if !b:compile_buffered
+    let msg = ["", msg]
   endif
 
   call appendbufline(self.buffer, "$", msg)
 
-  let exit_color = a:data == 0 ? "Good" : "Error"
-  call compile#set_status("Exit ", a:data, "Compile" . exit_color)
+  let exit_color = a:data == 0 ? "Good" : "Bad"
+  call compile#set_status("exit " . a:data, "Compile" . exit_color)
 endfunction
 " }}}
 " The callbacks for the job control {{{
@@ -63,9 +69,6 @@ let g:compile#callbacks = {
 function! compile#execute()
   silent! normal! gg"_dG
   call setbufline(bufnr(), 1, ["Executing `" . b:compile_command . "`", ""])
-
-  let b:compile_time = 0
-  let b:compile_timer = timer_start(1000, function('compile#timer'), {'repeat': -1})
 
   let b:compile_job = jobstart(['sh', '-c', b:compile_command], extend({'buffer': bufnr()}, g:compile#callbacks))
 endfunction
@@ -111,20 +114,20 @@ endfunction
 " }}}
 " Add the highlights {{{
 function! compile#add_highlights()
-  syntax match compileError '\(warning\|error\|failed\):\?'
-  syntax match compileError 'Segmentation fault'
+  syntax match compileLabel '^\f\+:'he=e-1
+  syntax match compileFile '\f\+:\s*[0-9]\+'
+  syntax match compileFile '\f\+:\s*[0-9]\+:[0-9]\+'
 
-  syntax match compileFile '^\f\+:'he=e-1
-  syntax match compileFileNum '^\f\+:[0-9]\+'
-  syntax match compileFileNum '^\f\+:[0-9]\+:[0-9]\+'
+  syntax match Number 'exit value [0-9]\+ at ..:..:..'hs=s+11,he=e-12
 
-  syntax match Number '[0-9]'
   syntax match String "\('[^']*'\|\"[^\"]*\"\)"
   syntax match String "`\([^']*'\|[^\"]*\"\)"
-  syntax match String "^\s*+\s*.*"
+  syntax match DiffAdded "^\s*+\s*.*"
 
   syntax match compileCommand '\%1l`.*`$'hs=s+1,he=e-1
-  syntax keyword compileGood succeeded
+
+  syntax keyword compileGood finished succeeded
+  syntax keyword compileBad warning error failed
 endfunction
 " }}}
 " Add the mappings {{{
@@ -146,17 +149,33 @@ function! compile#open(command)
   execute g:compile#open_command . " *compilation*"
 
   setlocal buftype=nofile
-  call compile#set_status("Running")
+  call compile#set_status("running", "compileLabel")
 
   let b:compile_command = a:command
+  let b:compile_buffered = 1
 
   call compile#add_highlights()
   call compile#add_mappings()
   call compile#execute()
 endfunction
 " }}}
+" The main compilation function {{{
+function! compile#main(command)
+  let g:compile#previous_command = a:command
+
+  let command = join(map(split(a:command, '\ze[<%#]'), 'expand(v:val)'), '')
+  let command = substitute(command, "'", "'\"'\"'", "g")
+
+  call compile#open(command)
+endfunction
+" }}}
 " Interactive function for compilation {{{
-function! compile#input()
+function! compile#start(...)
+
+  if exists("a:1")
+    call compile#main(a:1)
+    return
+  endif
 
   echohl compilePrompt
   let command = input("Compile: ", g:compile#previous_command)
@@ -167,10 +186,6 @@ function! compile#input()
     return
   endif
 
-  let g:compile#previous_command = command
-  let command = join(map(split(command, '\ze[<%#]'), 'expand(v:val)'), '')
-  let command = substitute(command, "'", "'\"'\"'", "g")
-
-  call compile#open(command)
+  call compile#main(command)
 endfunction
 " }}}

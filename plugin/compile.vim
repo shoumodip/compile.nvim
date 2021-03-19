@@ -7,10 +7,10 @@ function! s:HL(name, link)
   return 1
 endfunction
 
-call s:HL("compileError", "WarningMsg")
+call s:HL("compileBad", "WarningMsg")
 call s:HL("compileGood", "Function")
-call s:HL("compileFile", "Identifier")
-call s:HL("compileFileNum", "Special")
+call s:HL("compileLabel", "Identifier")
+call s:HL("compileFile", "Special")
 call s:HL("compileCommand", "Function")
 call s:HL("compilePrompt", "Function")
 " }}}
@@ -23,4 +23,4 @@ if !exists("g:compile#previous_command")
   let g:compile#previous_command = ""
 endif
 " }}}
-command! -nargs=0 Compile call compile#input()
+command! -nargs=* Compile call compile#start(<args>)

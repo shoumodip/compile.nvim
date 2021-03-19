@@ -1,5 +1,5 @@
 # Compilation Integration
-![Compile](img/demo.png)
+![Compile](img/image.png)
 
 Inspired by `M-x compile` in Emacs.
 
@@ -45,7 +45,7 @@ After the execution has finished, there are two keys you can press.
 - `e` Edit the command and run the new one
 
 ## Filename
-By the way `compile.vim` supports filename expansions (`%`). See `:h filename-modifiers` for more information. If you wish to use a literal `%` in your command use `\%`.
+By the way `compile.nvim` supports filename expansions (`%`). See `:h filename-modifiers` for more information. If you wish to use a literal `%` in your command use `\%`.
 
 ## Configuration
 Set these options wherever and whenever you want.
@@ -54,12 +54,18 @@ Set these options wherever and whenever you want.
 - `g:compile#previous_command` The command used in the previous compilation window and offered as a suggestion during the input. Blank by default.
 
 ## Highlights
-- `compileError` links to `WarningMsg`
+- `compileBad` links to `WarningMsg`
 - `compileGood` links to `Function`
-- `compileFile` links to `Identifier`
-- `compileFileNum` links to `Special`
+- `compileLabel` links to `Identifier`
+- `compileFile` links to `Special`
 - `compileCommand` links to `Function`
 - `compilePrompt` links to `Function`
+
+## `:Compile`
+The `:Compile` command can also take an argument as a string. In that case, it will not prompt the user for the command, but rather execute the argument as the command.
+
+Syntax:
+- `:Compile <command>`
 
 ## Prerequisites
 - The `sh` interpreter (`Bash`, `Dash`, whatever)
