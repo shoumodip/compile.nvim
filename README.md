@@ -29,6 +29,13 @@ cd ~/.config/nvim/bundle && git clone https://github.com/shoumodip/compile.vim
 cd ~/.config/nvim/pack/plugins/start && git clone https://github.com/shoumodip/compile.vim
 ```
 
+## Quick Start
+| Name           | Description                   |
+| -------------- | ----------------------------- |
+| `:Compile`     | Start a compilation command   |
+| `:CompileNext` | Jump to the next location     |
+| `:CompilePrev` | Jump to the previous location |
+
 ## How to use
 Just issue `:Compile` in command-mode. It will open an interactive command selection prompt with the previous command you executed being automatically selected.
 
@@ -38,7 +45,7 @@ It will open a split (`g:compile#open_commmand`) and execute the function with t
 - Time taken
 - Exit code
 
-After the execution has finished, there are two keys you can press.
+After the execution has finished, there are three keys you can press.
 
 - `q` Quit the compilation window
 - `r` Rerun the command
