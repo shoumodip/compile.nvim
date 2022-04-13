@@ -122,8 +122,13 @@ function! compile#jump(rev)
 endfunction
 
 function! compile#restart()
-    call win_gotoid(bufwinid("*compilation*"))
-    call compile#execute()
+    let id = bufwinid("*compilation*")
+    if id == -1
+        call compile#start()
+    else
+        call win_gotoid(id)
+        call compile#execute()
+    endif
 endfunction
 
 " Add the highlights
