@@ -26,3 +26,4 @@ endif
 command! -nargs=* Compile call compile#start(<args>)
 command! -nargs=0 CompileNext call compile#jump(0)
 command! -nargs=0 CompilePrev call compile#jump(1)
+command! -nargs=0 Recompile call compile#restart()

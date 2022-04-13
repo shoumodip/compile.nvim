@@ -121,6 +121,11 @@ function! compile#jump(rev)
     call compile#open_file()
 endfunction
 
+function! compile#restart()
+    call win_gotoid(bufwinid("*compilation*"))
+    call compile#execute()
+endfunction
+
 " Add the highlights
 function! compile#add_highlights()
     syntax match compileLabel '^\f\+:'he=e-1

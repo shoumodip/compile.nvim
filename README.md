@@ -35,6 +35,7 @@ cd ~/.config/nvim/pack/plugins/start && git clone https://github.com/shoumodip/c
 | `:Compile`     | Start a compilation command   |
 | `:CompileNext` | Jump to the next location     |
 | `:CompilePrev` | Jump to the previous location |
+| `:Recompile`   | Rerun the compilation command |
 
 ## How to use
 Just issue `:Compile` in command-mode. It will open an interactive command selection prompt with the previous command you executed being automatically selected.
