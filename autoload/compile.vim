@@ -163,10 +163,10 @@ function! compile#add_mappings()
     nnoremap <buffer> <silent> p    :call compile#jump(1)<cr>
 endfunction
 
-" Delete the compilation buffer
+" Close the compilation window
 function! compile#close()
     silent! call jobstop(b:compile_job)
-    bdelete!
+    close
 endfunction
 
 " Open the compilation window
