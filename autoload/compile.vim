@@ -68,6 +68,10 @@ let g:compile#callbacks = {
 
 " Execute the compilation command
 function! compile#execute()
+    if g:compile#auto_save
+        silent! wa
+    endif
+
     silent! normal! gg"_dG
     call setbufline(bufnr(), 1, ["Executing `" . b:compile_command . "`", ""])
 

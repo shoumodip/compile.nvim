@@ -1,10 +1,10 @@
 " Highlights
 function! s:HL(name, link)
-  if !hlexists(a:name)
-    execute "highlight! link ".a:name." ".a:link
-  endif
+    if !hlexists(a:name)
+        execute "highlight! link ".a:name." ".a:link
+    endif
 
-  return 1
+    return 1
 endfunction
 
 call s:HL("compileBad", "WarningMsg")
@@ -16,11 +16,15 @@ call s:HL("compilePrompt", "Function")
 
 " Variables
 if !exists("g:compile#open_command")
-  let g:compile#open_command = "split"
+    let g:compile#open_command = "split"
 endif
 
 if !exists("g:compile#previous_command")
-  let g:compile#previous_command = ""
+    let g:compile#previous_command = ""
+endif
+
+if !exists("g:compile#auto_save")
+    let g:compile#auto_save = 1
 endif
 
 command! -nargs=* Compile call compile#start(<args>)

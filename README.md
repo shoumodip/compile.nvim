@@ -60,6 +60,7 @@ Set these options wherever and whenever you want.
 
 - `g:compile#open_command` The command used for opening the compilation window. Defaults to `split`.
 - `g:compile#previous_command` The command used in the previous compilation window and offered as a suggestion during the input. Blank by default.
+- `g:compile#auto_save` Whether all the open buffers should be saved before starting the compilation. True by default.
 
 ## Highlights
 - `compileBad` links to `WarningMsg`
