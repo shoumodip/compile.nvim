@@ -124,7 +124,12 @@ endfunction
 function! compile#restart()
     let id = bufwinid("*compilation*")
     if id == -1
-        call compile#start()
+        if bufnr("*compilation*") == -1
+            call compile#start()
+        else
+            execute g:compile#open_command . " *compilation*"
+            call compile#execute()
+        endif
     else
         call win_gotoid(id)
         call compile#execute()
