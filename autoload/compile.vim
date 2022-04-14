@@ -107,15 +107,26 @@ function! compile#open_file()
         let cursor_position = getpos(".")
         let file_buffer = bufnr()
 
-        silent! call win_gotoid(win_getid(winnr("#")))
+        call win_gotoid(win_getid(winnr("#")))
         execute "buffer " . file_buffer
 
-        silent! call win_gotoid(win_getid(winnr("#")))
+        call win_gotoid(win_getid(winnr("#")))
         execute "buffer " . compiler_buffer
+
+        " Check if the column is also provided
+        let line = getline(".")[col(".") - 1:]
+
+        let col = 1
+        if match(line, '^\f\+:\s*\d\+:\d\+') != -1
+            let col = split(line, ":")[2]
+        endif
+
         normal! zt
 
-        silent! call win_gotoid(win_getid(winnr("#")))
+        call win_gotoid(win_getid(winnr("#")))
         call setpos(".", cursor_position)
+
+        execute "normal! " . col . "|"
     endif
 endfunction
 
@@ -169,7 +180,7 @@ endfunction
 
 " Close the compilation window
 function! compile#close()
-    silent! call jobstop(b:compile_job)
+    call jobstop(b:compile_job)
     close
 endfunction
 
