@@ -19,6 +19,7 @@ function! compile#handler_output(job_id, data, event) dict
         return
     endif
 
+    call setbufvar(self.buffer, "&modifiable", 1)
     if count(data, "\n") == len(data_list)
         call appendbufline(self.buffer, "$", data_list[:-1])
         let b:compile_buffered = 0
@@ -34,6 +35,7 @@ function! compile#handler_output(job_id, data, event) dict
 
         let b:compile_buffered = 1
     endif
+    call setbufvar(self.buffer, "&modifiable", 0)
 endfunction
 
 " Handler for the exit event of the compilation
@@ -53,7 +55,9 @@ function compile#handler_exit(job_id, data, event) dict
         let msg = ["", msg]
     endif
 
+    call setbufvar(self.buffer, "&modifiable", 1)
     call appendbufline(self.buffer, "$", msg)
+    call setbufvar(self.buffer, "&modifiable", 0)
 
     let exit_color = a:data == 0 ? "Good" : "Bad"
     call compile#set_status("exit " . a:data, "Compile" . exit_color)
@@ -72,8 +76,10 @@ function! compile#execute()
         silent! wa
     endif
 
+    call setbufvar(bufnr(), "&modifiable", 1)
     silent! normal! gg"_dG
     call setbufline(bufnr(), 1, ["Executing `" . b:compile_command . "`", ""])
+    call setbufvar(bufnr(), "&modifiable", 0)
 
     let b:compile_start = reltime()
     let b:compile_job = jobstart(['sh', '-c', b:compile_command], extend({'buffer': bufnr()}, g:compile#callbacks))
@@ -96,7 +102,7 @@ endfunction
 function! compile#open_file()
     let line = getline(".")[col(".") - 1:]
 
-    if strlen(matchstr(line, '^\f\+:')) == 0
+    if strlen(matchstr(line, '^\f\+:\s*\d\+')) == 0
         normal! j
         return
     endif
@@ -123,7 +129,7 @@ function! compile#open_file()
             let col = split(line, ":")[2]
         endif
 
-        normal! zt
+        normal! zz
 
         call win_gotoid(win_getid(winnr("#")))
         call setpos(".", cursor_position)
