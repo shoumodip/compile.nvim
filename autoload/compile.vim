@@ -204,7 +204,7 @@ endfunction
 " The main compilation function
 function! compile#main(command)
     let g:compile#previous_command = a:command
-    call compile#open(a:command)
+    call compile#open(join(map(split(a:command, '\ze[<%#]'), 'expand(v:val)'), ''))
 endfunction
 
 " Interactive function for compilation
