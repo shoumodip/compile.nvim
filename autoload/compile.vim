@@ -105,6 +105,8 @@ function! compile#open_file()
 
     if winnr("$") > 1
         let cursor_position = getpos(".")
+        let cursor_position[2] = 0
+
         let file_buffer = bufnr()
 
         call win_gotoid(win_getid(winnr("#")))
@@ -126,7 +128,9 @@ function! compile#open_file()
         call win_gotoid(win_getid(winnr("#")))
         call setpos(".", cursor_position)
 
-        execute "normal! " . col . "|"
+        if col > 1
+            execute "normal! " . (col - 1) . "l"
+        endif
     endif
 endfunction
 
