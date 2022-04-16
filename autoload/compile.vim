@@ -186,9 +186,11 @@ endfunction
 
 " Open the compilation window
 function! compile#open(command)
-    execute g:compile#open_command . " *compilation*"
+    if bufwinid("*compilation*") == -1
+        execute g:compile#open_command . " *compilation*"
+        setlocal buftype=nofile
+    endif
 
-    setlocal buftype=nofile
     call compile#set_status("running", "compileLabel")
 
     let b:compile_command = a:command
@@ -202,11 +204,7 @@ endfunction
 " The main compilation function
 function! compile#main(command)
     let g:compile#previous_command = a:command
-
-    let command = join(map(split(a:command, '\ze[<%#]'), 'expand(v:val)'), '')
-    let command = substitute(command, "'", "'\"'\"'", "g")
-
-    call compile#open(command)
+    call compile#open(a:command)
 endfunction
 
 " Interactive function for compilation
