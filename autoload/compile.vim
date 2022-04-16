@@ -185,7 +185,12 @@ endfunction
 " Close the compilation window
 function! compile#close()
     call jobstop(b:compile_job)
-    close
+
+    try
+        close
+    catch /.*/
+        bn
+    endtry
 endfunction
 
 " Open the compilation window
