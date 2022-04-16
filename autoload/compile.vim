@@ -94,7 +94,9 @@ endfunction
 
 " Open the file under the cursor, works like gF
 function! compile#open_file()
-    if strlen(matchstr(getline("."), '^\f\+:')) == 0
+    let line = getline(".")[col(".") - 1:]
+
+    if strlen(matchstr(line, '^\f\+:')) == 0
         normal! j
         return
     endif
@@ -116,8 +118,6 @@ function! compile#open_file()
         execute "buffer " . compiler_buffer
 
         " Check if the column is also provided
-        let line = getline(".")[col(".") - 1:]
-
         let col = 1
         if match(line, '^\f\+:\s*\d\+:\d\+') != -1
             let col = split(line, ":")[2]
