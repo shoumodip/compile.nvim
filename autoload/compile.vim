@@ -10,64 +10,39 @@ function! compile#set_status(text, ...)
     let &l:statusline = text
 endfunction
 
-" Handler for output of the compilation
-function! compile#handler_output(job_id, data, event) dict
-    let data = join(a:data, "\n")
-    let data_list = split(data, "\n")
-
-    if strlen(data) == 0
-        return
-    endif
-
-    call setbufvar(self.buffer, "&modifiable", 1)
-    if count(data, "\n") == len(data_list)
-        call appendbufline(self.buffer, "$", data_list[:-1])
-        let b:compile_buffered = 0
-    else
-        let lines = getbufline(self.buffer, 1, "$")
-        let len = len(lines)
-
-        if len < 3
-            call appendbufline(self.buffer, "$", repeat([""], 3 - len))
+" Handler for the compilation
+function! compile#handler(job_id, data, event) dict
+    if a:event == 'exit'
+        let msg = "Command "
+        if a:data == 0
+            let msg .= "finished"
+        else
+            let msg .= "exited abnormally with exit code " . a:data
         endif
 
-        call setbufline(self.buffer, "$", split(lines[-1] . data, "\n"))
+        call setbufvar(self.buffer, "&modifiable", 1)
+        call appendbufline(self.buffer, "$", add(self.output, msg))
+        call setbufvar(self.buffer, "&modifiable", 0)
 
-        let b:compile_buffered = 1
-    endif
-    call setbufvar(self.buffer, "&modifiable", 0)
-endfunction
-
-" Handler for the exit event of the compilation
-function compile#handler_exit(job_id, data, event) dict
-    if !exists("b:compile_command")
-        return
-    endif
-
-    let msg = "Command "
-    if a:data == 0
-        let msg .= "finished"
+        let exit_color = a:data == 0 ? "Good" : "Bad"
+        call compile#set_status("exit " . a:data, "Compile" . exit_color)
     else
-        let msg .= "exited abnormally with exit code " . a:data
-    endif
+        let self.output[-1] .= a:data[0]
+        call extend(self.output, a:data[1:])
+        let str = self.output[:-2]
+        let self.output = [self.output[-1]]
 
-    if !b:compile_buffered
-        let msg = ["", msg]
-    endif
-
-    call setbufvar(self.buffer, "&modifiable", 1)
-    call appendbufline(self.buffer, "$", msg)
-    call setbufvar(self.buffer, "&modifiable", 0)
-
-    let exit_color = a:data == 0 ? "Good" : "Bad"
-    call compile#set_status("exit " . a:data, "Compile" . exit_color)
+        call setbufvar(self.buffer, "&modifiable", 1)
+        call appendbufline(self.buffer, '$', l:str)
+        call setbufvar(self.buffer, "&modifiable", 0)
+    end
 endfunction
 
 " The callbacks for the job control
 let g:compile#callbacks = {
-            \ 'on_stdout': function('compile#handler_output'),
-            \ 'on_stderr': function('compile#handler_output'),
-            \ 'on_exit': function('compile#handler_exit')
+            \ 'on_stdout': function('compile#handler'),
+            \ 'on_stderr': function('compile#handler'),
+            \ 'on_exit': function('compile#handler')
             \ }
 
 " Execute the compilation command
@@ -82,7 +57,8 @@ function! compile#execute()
     call setbufvar(bufnr(), "&modifiable", 0)
 
     let b:compile_start = reltime()
-    let b:compile_job = jobstart(['sh', '-c', b:compile_command], extend({'buffer': bufnr()}, g:compile#callbacks))
+    let b:compile_job = jobstart(['sh', '-c', b:compile_command],
+                \ extend({'buffer': bufnr(), 'output': ['']}, g:compile#callbacks))
 endfunction
 
 " Edit the compilation command
@@ -149,11 +125,11 @@ endfunction
 function! compile#restart()
     let id = bufwinid("*compilation*")
     if id == -1
-        if bufnr("*compilation*") == -1
-            call compile#start()
-        else
+        if buflisted("*compilation*")
             execute g:compile#open_command . " *compilation*"
             call compile#execute()
+        else
+            call compile#start()
         endif
     else
         call win_gotoid(id)
@@ -175,7 +151,8 @@ function! compile#add_highlights()
     syntax match compileGood "\<finished\>"
     syntax match compileBad "\<exited abnormally\>"
 
-    syntax keyword compileBad warning error
+    syntax keyword compileBad error
+    syntax keyword compileLint note warning
 endfunction
 
 " Add the mappings
@@ -209,7 +186,6 @@ function! compile#open(command)
     call compile#set_status("running", "compileLabel")
 
     let b:compile_command = a:command
-    let b:compile_buffered = 1
 
     call compile#add_highlights()
     call compile#add_mappings()

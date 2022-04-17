@@ -65,6 +65,7 @@ Set these options wherever and whenever you want.
 ## Highlights
 - `compileBad` links to `WarningMsg`
 - `compileGood` links to `Function`
+- `compileLint` links to `Question`
 - `compileLabel` links to `Identifier`
 - `compileFile` links to `Special`
 - `compileCommand` links to `Function`
@@ -78,3 +79,7 @@ Syntax:
 
 ## Prerequisites
 - The `sh` interpreter (`Bash`, `Dash`, whatever)
+
+## See Also
+- [vim-terminator](https://github.com/erietz/vim-terminator)
+- [asyncrun.vim](https://github.com/skywind3000/asyncrun.vim)

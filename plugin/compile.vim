@@ -8,9 +8,10 @@ function! s:HL(name, link)
 endfunction
 
 call s:HL("compileBad", "WarningMsg")
+call s:HL("compileLint", "Question")
 call s:HL("compileGood", "Function")
 call s:HL("compileLabel", "Identifier")
-call s:HL("compileFile", "Special")
+call s:HL("compileFile", "Underlined")
 call s:HL("compileCommand", "Function")
 call s:HL("compilePrompt", "Function")
 
