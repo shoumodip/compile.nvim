@@ -1,5 +1,5 @@
 # Compilation Integration
-![Compile](img/image.png)
+![Compile](img/demo.png)
 
 Inspired by `M-x compile` in Emacs.
 
