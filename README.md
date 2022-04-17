@@ -43,7 +43,6 @@ Just issue `:Compile` in command-mode. It will open an interactive command selec
 It will open a split (`g:compile#open_commmand`) and execute the function with the following debug info:
 
 - The command
-- Time taken
 - Exit code
 
 After the execution has finished, there are three keys you can press.
