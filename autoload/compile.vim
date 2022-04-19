@@ -51,6 +51,8 @@ function! compile#execute()
         silent! wa
     endif
 
+    call compile#set_status("running", "compileLabel")
+
     call setbufvar(bufnr(), "&modifiable", 1)
     silent! normal! gg"_dG
     call setbufline(bufnr(), 1, ["Executing `" . b:compile_command . "`", ""])
@@ -182,8 +184,6 @@ function! compile#open(command)
         execute g:compile#open_command . " *compilation*"
         setlocal buftype=nofile
     endif
-
-    call compile#set_status("running", "compileLabel")
 
     let b:compile_command = a:command
 
