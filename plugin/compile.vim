@@ -7,13 +7,13 @@ function! s:HL(name, link)
     return 1
 endfunction
 
-call s:HL("compileBad", "WarningMsg")
-call s:HL("compileLint", "Question")
+call s:HL("compileBad", "ErrorMsg")
+call s:HL("compileLint", "WarningMsg")
 call s:HL("compileGood", "Function")
 call s:HL("compileLabel", "Identifier")
 call s:HL("compileFile", "Underlined")
 call s:HL("compileCommand", "Function")
-call s:HL("compilePrompt", "Function")
+call s:HL("compilePrompt", "Question")
 
 " Variables
 if !exists("g:compile#open_command")
