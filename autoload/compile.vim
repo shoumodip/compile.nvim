@@ -154,7 +154,7 @@ function! compile#add_highlights()
     syntax match compileBad "\<exited abnormally\>"
 
     syntax keyword compileBad error
-    syntax keyword compileLint note warning
+    syntax keyword compileLint note hint warning
 endfunction
 
 " Add the mappings
