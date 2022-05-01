@@ -1,3 +1,8 @@
+if exists("g:loaded_compile_nvim")
+  finish
+endif
+let g:loaded_compile_nvim = 1
+
 " Highlights
 function! s:HL(name, link)
     if !hlexists(a:name)
