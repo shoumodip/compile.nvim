@@ -33,6 +33,8 @@ if !exists("g:compile#auto_save")
     let g:compile#auto_save = 1
 endif
 
+sign define CompilationCurrent text=> texthl=Error linehl=CursorLine
+
 command! -nargs=* Compile call compile#start(<args>)
 command! -nargs=0 CompileNext call compile#jump(0)
 command! -nargs=0 CompilePrev call compile#jump(1)

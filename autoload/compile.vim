@@ -1,3 +1,5 @@
+let s:compile_buffer_name = "*compilation*"
+
 " Set the statusline of the current window
 function! compile#set_status(text, ...)
     let text = "Compilation: "
@@ -51,16 +53,18 @@ function! compile#execute()
         silent! wa
     endif
 
+    let buffer = bufnr()
+    call sign_unplace('*', {'buffer': buffer})
     call compile#set_status("running", "compileLabel")
 
-    call setbufvar(bufnr(), "&modifiable", 1)
+    call setbufvar(buffer, "&modifiable", 1)
     silent! normal! gg"_dG
-    call setbufline(bufnr(), 1, ["Executing `" . b:compile_command . "`", ""])
-    call setbufvar(bufnr(), "&modifiable", 0)
+    call setbufline(buffer, 1, ["Executing `" . b:compile_command . "`", ""])
+    call setbufvar(buffer, "&modifiable", 0)
 
     let b:compile_start = reltime()
     let b:compile_job = jobstart(['sh', '-c', b:compile_command],
-                \ extend({'buffer': bufnr(), 'output': ['']}, g:compile#callbacks))
+                \ extend({'buffer': buffer, 'output': ['']}, g:compile#callbacks))
 endfunction
 
 " Edit the compilation command
@@ -85,56 +89,58 @@ function! compile#open_file()
         return
     endif
 
-    let compiler_buffer = bufnr()
+    let line = split(line, ":")
 
-    silent! normal! gF
+    normal! zz
+    wincmd p
 
-    if winnr("$") > 1
-        let cursor_position = getpos(".")
-        let cursor_position[2] = 0
+    let position = getpos(".")
+    let position[1] = str2nr(line[1])
 
-        let file_buffer = bufnr()
-
-        call win_gotoid(win_getid(winnr("#")))
-        execute "buffer " . file_buffer
-
-        call win_gotoid(win_getid(winnr("#")))
-        execute "buffer " . compiler_buffer
-
-        " Check if the column is also provided
-        let col = 1
-        if match(line, '^\f\+:\s*\d\+:\d\+') != -1
-            let col = split(line, ":")[2]
-        endif
-
-        normal! zz
-
-        call win_gotoid(win_getid(winnr("#")))
-        call setpos(".", cursor_position)
-
-        if col > 1
-            execute "normal! " . (col - 1) . "l"
-        endif
+    if len(line) > 2
+        let position[2] = str2nr(line[2])
     endif
+
+    call setpos(".", position)
 endfunction
 
+" Jump to the next or previous location in the compilation output
 function! compile#jump(rev)
-    call win_gotoid(bufwinid("*compilation*"))
+    if !buflisted(s:compile_buffer_name)
+        call compile#start()
+        return
+    endif
+
+    let window = bufwinid(s:compile_buffer_name)
+
+    if window == -1
+        execute g:compile#open_command . " " . s:compile_buffer_name
+    else
+        call win_gotoid(window)
+    endif
+
     call search('\f\+:\s*[0-9]\+\(:[0-9]\+\)\?', a:rev ? 'wb' : 'w')
+
+    let buffer = bufname()
+    call sign_unplace('*', {'buffer': buffer})
+    call sign_place(69, '', 'CompilationCurrent', buffer, {'lnum': line(".")})
+
     call compile#open_file()
 endfunction
 
 function! compile#restart()
-    let id = bufwinid("*compilation*")
+    let id = bufwinid(s:compile_buffer_name)
     if id == -1
-        if buflisted("*compilation*")
-            execute g:compile#open_command . " *compilation*"
+        if buflisted(s:compile_buffer_name)
+            execute g:compile#open_command . " " . s:compile_buffer_name
+            call jobstop(b:compile_job)
             call compile#execute()
         else
             call compile#start()
         endif
     else
         call win_gotoid(id)
+        call jobstop(b:compile_job)
         call compile#execute()
     endif
 endfunction
@@ -180,9 +186,10 @@ endfunction
 
 " Open the compilation window
 function! compile#open(command)
-    if bufwinid("*compilation*") == -1
-        execute g:compile#open_command . " *compilation*"
-        setlocal buftype=nofile
+    if bufwinid(s:compile_buffer_name) == -1
+        execute g:compile#open_command . " " . s:compile_buffer_name
+        setlocal buftype=nofile signcolumn=yes
+        setlocal nocursorline nocursorcolumn
     endif
 
     let b:compile_command = a:command

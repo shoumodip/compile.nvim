@@ -1,7 +1,7 @@
-# Compilation Integration
-![Compile](img/demo.png)
+# compile.nvim
+![Screenshot](img/screenshot.png)
 
-Inspired by `M-x compile` in Emacs.
+Compilation integration for Neovim
 
 ## Install
 
