@@ -94,8 +94,13 @@ function! compile#open_file()
     normal! zz
     wincmd p
 
-    let position = getpos(".")
-    let position[1] = str2nr(line[1])
+    try
+        execute "buffer " . line[0]
+    catch /.*/
+        execute "edit " . line[0]
+    endtry
+
+    let position = [bufnr(), str2nr(line[1]), 0, 0]
 
     if len(line) > 2
         let position[2] = str2nr(line[2])
