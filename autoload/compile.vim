@@ -91,6 +91,10 @@ function! compile#open_file()
 
     let line = split(line, ":")
 
+    let buffer = bufnr()
+    call sign_unplace('*', {'buffer': buffer})
+    call sign_place(69, '', 'CompilationCurrent', buffer, {'lnum': line(".")})
+
     normal! zz
     wincmd p
 
@@ -100,7 +104,7 @@ function! compile#open_file()
         execute "edit " . line[0]
     endtry
 
-    let position = [bufnr(), str2nr(line[1]), 0, 0]
+    let position = [buffer, str2nr(line[1]), 0, 0]
 
     if len(line) > 2
         let position[2] = str2nr(line[2])
@@ -125,11 +129,6 @@ function! compile#jump(rev)
     endif
 
     call search('\f\+:\s*[0-9]\+\(:[0-9]\+\)\?', a:rev ? 'wb' : 'w')
-
-    let buffer = bufname()
-    call sign_unplace('*', {'buffer': buffer})
-    call sign_place(69, '', 'CompilationCurrent', buffer, {'lnum': line(".")})
-
     call compile#open_file()
 endfunction
 
