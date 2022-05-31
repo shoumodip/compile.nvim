@@ -193,7 +193,7 @@ endfunction
 function! compile#open(command)
     if bufwinid(s:compile_buffer_name) == -1
         execute g:compile#open_command . " " . s:compile_buffer_name
-        setlocal buftype=nofile signcolumn=yes
+        setlocal buftype=nofile
         setlocal nocursorline nocursorcolumn
     endif
 
