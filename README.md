@@ -47,9 +47,14 @@ It will open a split (`g:compile#open_commmand`) and execute the function with t
 
 After the execution has finished, there are three keys you can press.
 
-- `q` Quit the compilation window
-- `r` Rerun the command
-- `e` Edit the command and run the new one
+| Key     | Description                           |
+| `q`     | Quit the compilation window           |
+| `r`     | Rerun the command                     |
+| `e`     | Edit the command and run the new one  |
+| `n`     | Jump to the next location             |
+| `p`     | Jump to the previous location         |
+| `<cr>`  | Jump to the location under the cursor |
+| `<c-c>` | Kill the process                      |
 
 ## Filename
 By the way `compile.nvim` supports filename expansions (`%`). See `:h filename-modifiers` for more information. If you wish to use a literal `%` in your command use `\%`.

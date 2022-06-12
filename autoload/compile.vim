@@ -169,12 +169,13 @@ endfunction
 
 " Add the mappings
 function! compile#add_mappings()
-    nnoremap <buffer> <silent> r    :call compile#execute()<cr>
-    nnoremap <buffer> <silent> q    :call compile#close()<cr>
-    nnoremap <buffer> <silent> <cr> :call compile#open_file()<cr>
-    nnoremap <buffer> <silent> e    :call compile#edit_command()<cr>
-    nnoremap <buffer> <silent> n    :call compile#jump(0)<cr>
-    nnoremap <buffer> <silent> p    :call compile#jump(1)<cr>
+    nnoremap <buffer> <silent> r     :call compile#execute()<cr>
+    nnoremap <buffer> <silent> q     :call compile#close()<cr>
+    nnoremap <buffer> <silent> <cr>  :call compile#open_file()<cr>
+    nnoremap <buffer> <silent> e     :call compile#edit_command()<cr>
+    nnoremap <buffer> <silent> n     :call compile#jump(0)<cr>
+    nnoremap <buffer> <silent> p     :call compile#jump(1)<cr>
+    nnoremap <buffer> <silent> <c-c> :call jobstop(b:compile_job)<cr>
 endfunction
 
 " Close the compilation window
@@ -206,7 +207,7 @@ endfunction
 " The main compilation function
 function! compile#main(command)
     let g:compile#previous_command = a:command
-    call compile#open(join(map(split(a:command, '\ze[<%#]'), 'expand(v:val)'), ''))
+    call compile#open(a:command)
 endfunction
 
 " Interactive function for compilation
