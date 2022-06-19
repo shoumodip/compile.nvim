@@ -1,17 +1,5 @@
 let s:compile_buffer_name = "*compilation*"
 
-" Set the statusline of the current window
-function! compile#set_status(text, ...)
-    let text = "Compilation: "
-
-    if exists("a:1")
-        let text .= "%#" . a:1 . "#"
-    endif
-
-    let text .= a:text . "%*"
-    let &l:statusline = text
-endfunction
-
 " Handler for the compilation
 function! compile#handler(job_id, data, event) dict
     if a:event == 'exit'
@@ -25,9 +13,6 @@ function! compile#handler(job_id, data, event) dict
         call setbufvar(self.buffer, "&modifiable", 1)
         call appendbufline(self.buffer, "$", add(self.output, msg))
         call setbufvar(self.buffer, "&modifiable", 0)
-
-        let exit_color = a:data == 0 ? "Good" : "Bad"
-        call compile#set_status("exit " . a:data, "Compile" . exit_color)
     else
         let self.output[-1] .= a:data[0]
         call extend(self.output, a:data[1:])
@@ -55,7 +40,6 @@ function! compile#execute()
 
     let buffer = bufnr()
     call sign_unplace('*', {'buffer': buffer})
-    call compile#set_status("running", "compileLabel")
 
     call setbufvar(buffer, "&modifiable", 1)
     silent! normal! gg"_dG
@@ -151,14 +135,9 @@ endfunction
 
 " Add the highlights
 function! compile#add_highlights()
+    syntax match Number "exit code \d\+$"hs=s+10
     syntax match compileLabel '^\f\+:'he=e-1
     syntax match compileFile '\f\+:\s*\d\+\(:\d\+\)\?'
-
-    syntax match String "\('[^']*'\|\"[^\"]*\"\)"
-    syntax match String "`\([^']*'\|[^\"]*\"\)"
-    syntax match DiffAdded "^\s*+\s*.*"
-    syntax match Number "exit code \d\+$"hs=s+10
-
     syntax match compileCommand '\%1l`.*`$'hs=s+1,he=e-1
     syntax match compileGood "\<finished\>"
     syntax match compileBad "\<exited abnormally\>"
