@@ -152,8 +152,8 @@ function! compile#add_mappings()
     nnoremap <buffer> <silent> q     :call compile#close()<cr>
     nnoremap <buffer> <silent> <cr>  :call compile#open_file()<cr>
     nnoremap <buffer> <silent> e     :call compile#edit_command()<cr>
-    nnoremap <buffer> <silent> n     :call compile#jump(0)<cr>
-    nnoremap <buffer> <silent> p     :call compile#jump(1)<cr>
+    nnoremap <buffer> <silent> gn    :call compile#jump(0)<cr>
+    nnoremap <buffer> <silent> gp    :call compile#jump(1)<cr>
     nnoremap <buffer> <silent> <c-c> :call jobstop(b:compile_job)<cr>
 endfunction
 
