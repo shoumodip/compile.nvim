@@ -170,10 +170,13 @@ endfunction
 
 " Open the compilation window
 function! compile#open(command)
-    if bufwinid(s:compile_buffer_name) == -1
+    let win_id = bufwinid(s:compile_buffer_name)
+    if win_id == -1
         execute g:compile#open_command . " " . s:compile_buffer_name
         setlocal buftype=nofile
         setlocal nocursorline nocursorcolumn
+    else
+        call win_gotoid(win_id)
     endif
 
     let b:compile_command = a:command
