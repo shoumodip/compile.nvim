@@ -48,6 +48,7 @@ It will open a split (`g:compile#open_commmand`) and execute the function with t
 After the execution has finished, there are three keys you can press.
 
 | Key     | Description                           |
+| ------- | ------------------------------------- |
 | `q`     | Quit the compilation window           |
 | `r`     | Rerun the command                     |
 | `e`     | Edit the command and run the new one  |
