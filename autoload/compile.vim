@@ -68,7 +68,7 @@ endfunction
 function! compile#open_file()
     let line = getline(".")[col(".") - 1:]
 
-    if strlen(matchstr(line, '^\f\+:\s*\d\+')) == 0
+    if strlen(matchstr(line, '^\f\+:\d\+')) == 0
         normal! j
         return
     endif
@@ -112,7 +112,7 @@ function! compile#jump(rev)
         call win_gotoid(window)
     endif
 
-    call search('\f\+:\s*[0-9]\+\(:[0-9]\+\)\?', a:rev ? 'wb' : 'w')
+    call search('\f\+:\d\+\(:\d\+\)\?', a:rev ? 'wb' : 'w')
     call compile#open_file()
 endfunction
 
@@ -137,7 +137,7 @@ endfunction
 function! compile#add_highlights()
     syntax match Number "exit code \d\+$"hs=s+10
     syntax match compileLabel '^\f\+:'he=e-1
-    syntax match compileFile '\f\+:\s*\d\+\(:\d\+\)\?'
+    syntax match compileFile '\f\+:\d\+\(:\d\+\)\?'
     syntax match compileCommand '\%1l`.*`$'hs=s+1,he=e-1
     syntax match compileGood "\<finished\>"
     syntax match compileBad "\<exited abnormally\>"
