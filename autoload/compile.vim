@@ -121,14 +121,14 @@ function! compile#restart()
     if id == -1
         if buflisted(s:compile_buffer_name)
             execute g:compile#open_command . " " . s:compile_buffer_name
-            call jobstop(b:compile_job)
+            silent! call jobstop(b:compile_job)
             call compile#execute()
         else
             call compile#start()
         endif
     else
         call win_gotoid(id)
-        call jobstop(b:compile_job)
+        silent! call jobstop(b:compile_job)
         call compile#execute()
     endif
 endfunction
@@ -159,7 +159,7 @@ endfunction
 
 " Close the compilation window
 function! compile#close()
-    call jobstop(b:compile_job)
+    silent! call jobstop(b:compile_job)
 
     try
         close
