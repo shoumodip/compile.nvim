@@ -194,7 +194,7 @@ endfunction
 
 " Interactive function for compilation
 function! compile#start(...)
-    if exists("a:1")
+    if exists("a:1") && trim(a:1) != ""
         call compile#main(a:1)
         return
     endif
