@@ -24,6 +24,8 @@ function compile.event(_, data, event)
     end
   else
     if data then
+      data[1] = compile.last..data[1]
+      compile.last = data[#data]
       compile.line(-2, -1, data)
     end
   end
@@ -35,6 +37,7 @@ function compile.run()
   vim.api.nvim_win_set_cursor(0, {1, 0})
   compile.line(0, -1, {"Executing `"..compile.command.."`", "", ""})
 
+  compile.last = ""
   compile.job = vim.fn.jobstart(compile.command, {
     on_exit = compile.event,
     on_stdout = compile.event,
