@@ -28,17 +28,17 @@ The `:Compile` command can also take an argument as a string. In that case, it w
 | `]e`    | Open the next error             |
 | `[e`    | Open the previous error         |
 | `<cr>`  | Open the error under the cursor |
-| `<c-c>` | Kill the process                |
+| `<c-c>` | Stop the process                |
 
 Keybindings can be customized.
 
 ```lua
 local compile = require("compile")
 compile.bind {
-  ["n"] = compile.next,      -- Open the next error
-  ["p"] = compile.prev,      -- Open the previous error
-  ["o"] = compile.this,      -- Open the error under the cursor
-  ["r"] = compile.restart,   -- Restart the compilation process
-  ["q"] = compile.interrupt, -- Kill the compilation process
+  ["n"] = compile.next,    -- Open the next error
+  ["p"] = compile.prev,    -- Open the previous error
+  ["o"] = compile.this,    -- Open the error under the cursor
+  ["r"] = compile.restart, -- Restart the compilation process
+  ["q"] = compile.stop,    -- Stop the compilation process
 }
 ```

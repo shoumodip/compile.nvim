@@ -1,70 +1,45 @@
 local compile = {}
 
 function compile.stop()
-  if compile.stdout then
-    compile.stdout:read_stop()
-    compile.stdout:close()
-    compile.stdout = nil
-  end
-
-  if compile.stderr then
-    compile.stderr:read_stop()
-    compile.stderr:close()
-    compile.stderr = nil
-  end
-
-  if compile.handle then
-    compile.handle:close()
-    compile.handle = nil
+  if compile.job then
+    vim.fn.jobstop(compile.job)
   end
 end
 
 function compile.line(start, stop, data)
-  vim.api.nvim_buf_set_option(compile.buffer, "modifiable", true)
-  vim.api.nvim_buf_set_lines(compile.buffer, start, stop, false, data)
-  vim.api.nvim_buf_set_option(compile.buffer, "modifiable", false)
+  if compile.buffer then
+    vim.api.nvim_buf_set_option(compile.buffer, "modifiable", true)
+    vim.api.nvim_buf_set_lines(compile.buffer, start, stop, false, data)
+    vim.api.nvim_buf_set_option(compile.buffer, "modifiable", false)
+  end
 end
 
-function compile.read(_, data)
-  if data then
-    vim.schedule(function ()
-      data = vim.split(compile.last..data, "\n")
-      compile.last = data[#data]
+function compile.event(_, data, event)
+  if event == "exit" then
+    compile.job = nil
+    if data == 0 then
+      compile.line(-1, -1, {"Compilation succeeded"})
+    else
+      compile.line(-1, -1, {"Compilation failed with exit code "..data})
+    end
+  else
+    if data then
       compile.line(-2, -1, data)
-    end)
+    end
   end
 end
 
 function compile.run()
   vim.cmd("wall")
 
-  if compile.handle then
-    compile.stop()
-  end
-
   vim.api.nvim_win_set_cursor(0, {1, 0})
   compile.line(0, -1, {"Executing `"..compile.command.."`", "", ""})
 
-  compile.stdout = vim.loop.new_pipe()
-  compile.stderr = vim.loop.new_pipe()
-
-  local options = {
-    args = {"-c", compile.command},
-    stdio = {nil, compile.stdout, compile.stderr}
-  }
-
-  compile.handle = vim.loop.spawn("sh", options, vim.schedule_wrap(function (code)
-    compile.stop()
-    if code == 0 then
-      compile.line(-1, -1, {"Compilation succeeded"})
-    else
-      compile.line(-1, -1, {"Compilation failed with exit code "..code})
-    end
-  end))
-
-  compile.last = ""
-  compile.stdout:read_start(compile.read)
-  compile.stderr:read_start(compile.read)
+  compile.job = vim.fn.jobstart(compile.command, {
+    on_exit = compile.event,
+    on_stdout = compile.event,
+    on_stderr = compile.event
+  })
 end
 
 function compile.open()
@@ -119,7 +94,7 @@ function compile.start(cmd)
       syntax match Underlined '\f\+:\d\+\(:\d\+\)\?'
 
       syntax keyword Function succeeded
-      syntax keyword ErrorMsg error failed interrupted
+      syntax keyword ErrorMsg error failed
       syntax keyword WarningMsg note hint warning
     ]])
   end
@@ -167,16 +142,8 @@ end
 
 function compile.restart()
   if compile.open() then
-    compile.run()
-  else
-    compile.start()
-  end
-end
-
-function compile.interrupt()
-  if compile.open() then
     compile.stop()
-    compile.line(-1, -1, {"Compilation interrupted"})
+    vim.defer_fn(compile.run, 100)
   else
     compile.start()
   end
@@ -193,7 +160,7 @@ compile.bindings = {
   ["]e"] = compile.next,
   ["[e"] = compile.prev,
   ["<cr>"] = compile.this,
-  ["<c-c>"] = compile.interrupt,
+  ["<c-c>"] = compile.stop,
 }
 
 return compile
