@@ -127,7 +127,7 @@ function compile.this()
     wincmd p
     edit ]]..line[1])
 
-  vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, tonumber(line[3]) or 0})
+  vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, (tonumber(line[3]) or 1) - 1})
 end
 
 function compile.next(prev)
