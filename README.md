@@ -8,12 +8,14 @@ Compilation integration for Neovim
 Plug 'shoumodip/compile.nvim'
 ```
 
-| Name           | Description                   |
-| -------------- | ----------------------------- |
-| `:Compile`     | Start a compilation command   |
-| `:CompileNext` | Jump to the next location     |
-| `:CompilePrev` | Jump to the previous location |
-| `:Recompile`   | Rerun the compilation command |
+| Name                  | Description                               |
+| --------------------- | ----------------------------------------- |
+| `:Compile`            | Start a compilation command               |
+| `:CompileNext`        | Jump to the next location                 |
+| `:CompilePrev`        | Jump to the previous location             |
+| `:CompileNextWithCol` | Jump to the next location with column     |
+| `:CompilePrevWithCol` | Jump to the previous location with column |
+| `:Recompile`          | Rerun the compilation command             |
 
 The `:Compile` command can also take an argument as a string. In that case, it will not prompt the user for the command, but rather execute the argument as the command.
 
