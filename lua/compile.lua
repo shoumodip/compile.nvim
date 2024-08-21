@@ -130,6 +130,19 @@ function compile.this()
   vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, (tonumber(line[3]) or 1) - 1})
 end
 
+function compile.next_with_col(prev)
+  if compile.open() then
+    vim.fn.search("\\f\\+:\\d\\+:\\d\\+:", prev and "wb" or "w")
+    compile.this()
+  else
+    compile.start()
+  end
+end
+
+function compile.prev_with_col()
+  compile.next_with_col(true)
+end
+
 function compile.next(prev)
   if compile.open() then
     vim.fn.search("\\f\\+:\\d\\+:\\(\\d\\+:\\)\\?", prev and "wb" or "w")
@@ -160,8 +173,10 @@ end
 
 compile.bindings = {
   ["r"] = compile.restart,
-  ["]e"] = compile.next,
-  ["[e"] = compile.prev,
+  ["]e"] = compile.next_with_col,
+  ["[e"] = compile.prev_with_col,
+  ["]E"] = compile.next,
+  ["[E"] = compile.prev,
   ["<cr>"] = compile.this,
   ["<c-c>"] = compile.stop,
 }

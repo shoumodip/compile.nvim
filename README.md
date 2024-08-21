@@ -22,13 +22,15 @@ The `:Compile` command can also take an argument as a string. In that case, it w
 ```
 
 ## Keybindings
-| Key     | Description                     |
-| ------- | ------------------------------- |
-| `r`     | Restart the compilation process |
-| `]e`    | Open the next error             |
-| `[e`    | Open the previous error         |
-| `<cr>`  | Open the error under the cursor |
-| `<c-c>` | Stop the process                |
+| Key     | Description                       |
+| ------- | --------------------------------- |
+| `r`     | Restart the compilation process   |
+| `]e`    | Open the next error at column     |
+| `[e`    | Open the previous error at column |
+| `]E`    | Open the next error               |
+| `[E`    | Open the previous error           |
+| `<cr>`  | Open the error under the cursor   |
+| `<c-c>` | Stop the process                  |
 
 Keybindings can be customized.
 
