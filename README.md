@@ -1,5 +1,5 @@
 # compile.nvim
-![Screenshot](img/shot.png)
+![Screenshot](img/demo.png)
 
 Compilation integration for Neovim
 
@@ -46,3 +46,36 @@ compile.bind {
   ["q"] = compile.stop,    -- Stop the compilation process
 }
 ```
+
+## Lua API
+```lua
+local compile = require("compile")
+```
+
+### `compile.start(cmd?)`
+Execute `cmd` as a compilation process.
+
+### `compile.open()`
+Open the file location under the cursor.
+
+### `compile.next_with_col(prev?)`
+Open the next file location with mandatory column number.
+
+If the argument `prev` is provided with a "true" value, then it opens the previous error instead.
+
+### `compile.prev_with_col()`
+Open the previous file location with mandatory column number.
+
+### `compile.next(prev?)`
+Open the next file location.
+
+If the argument `prev` is provided with a "true" value, then it opens the previous error instead.
+
+### `compile.prev()`
+Open the previous file location.
+
+### `compile.restart()`
+Restart the compilation process.
+
+### `compile.stop()`
+Stop the compilation process.

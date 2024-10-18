@@ -1,184 +1,124 @@
-local compile = {}
+local M = {}
 
-function compile.stop()
-  if compile.job then
-    vim.fn.jobstop(compile.job)
-  end
+local function is_open()
+    return M.buffer and vim.api.nvim_buf_is_valid(M.buffer)
 end
 
-function compile.line(start, stop, data)
-  if compile.buffer then
-    vim.api.nvim_buf_set_option(compile.buffer, "modifiable", true)
-    vim.api.nvim_buf_set_lines(compile.buffer, start, stop, false, data)
-    vim.api.nvim_buf_set_option(compile.buffer, "modifiable", false)
-  end
-end
+local function open()
+    if not is_open() then
+        M.buffer = nil
+        return false
+    end
 
-function compile.event(_, data, event)
-  if event == "exit" then
-    compile.job = nil
-    if data == 0 then
-      compile.line(-1, -1, {"Compilation succeeded"})
+    local window = vim.fn.bufwinid(M.buffer)
+    if window == -1 then
+        vim.cmd("split")
+        vim.api.nvim_set_current_buf(M.buffer)
     else
-      compile.line(-1, -1, {"Compilation failed with exit code "..data})
+        vim.api.nvim_set_current_win(window)
     end
-  else
-    if data then
-      data[1] = compile.last..data[1]
-      compile.last = data[#data]
-      compile.line(-2, -1, data)
-    end
-  end
+
+    return true
 end
 
-function compile.run()
-  vim.cmd("wall")
-
-  vim.api.nvim_win_set_cursor(0, {1, 0})
-  compile.line(0, -1, {"Executing `"..compile.command.."`", "", ""})
-
-  compile.last = ""
-  compile.job = vim.fn.jobstart(compile.command, {
-    on_exit = compile.event,
-    on_stdout = compile.event,
-    on_stderr = compile.event
-  })
-end
-
-function compile.open()
-  if not compile.buffer then
-    return false
-  end
-
-  local window = vim.fn.bufwinid(compile.buffer)
-  if window == -1 then
-    vim.cmd("split")
-    vim.api.nvim_set_current_buf(compile.buffer)
-  else
-    vim.api.nvim_set_current_win(window)
-  end
-
-  return true
-end
-
-function compile.start(cmd)
-  if not cmd or cmd == "" then
-    _, cmd = pcall(vim.fn.input, "Compile: ")
-    if cmd == "" then
-      return
+function M.start(cmd)
+    if not cmd or cmd == "" then
+        _, cmd = pcall(vim.fn.input, "Compile: ")
+        if cmd == "" then
+            return
+        end
     end
-  end
 
-  if not compile.open() then
-    vim.cmd("new")
+    if is_open() then
+        vim.api.nvim_buf_delete(M.buffer, {force = true})
+    end
+
+    vim.cmd("wall | new | terminal "..cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
 
-    compile.buffer = vim.api.nvim_get_current_buf()
-    vim.api.nvim_buf_set_name(compile.buffer, "*compilation*")
-    vim.api.nvim_buf_set_option(compile.buffer, "buftype", "nofile")
-    vim.api.nvim_buf_set_option(compile.buffer, "modifiable", false)
+    M.cmd = cmd
+    M.buffer = vim.api.nvim_get_current_buf()
+    vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
-    vim.api.nvim_create_autocmd({"BufDelete"}, {
-      buffer = compile.buffer,
-      callback = function ()
-        compile.buffer = nil
-        compile.stop()
-      end,
-    })
+    for key, func in pairs(M.bindings) do
+        vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
+    end
+end
 
-    for key, func in pairs(compile.bindings) do
-      vim.keymap.set("n", key, func, {buffer = compile.buffer, silent = true})
+function M.open()
+    if not open() then
+        M.start()
+        return
     end
 
+    local pos = vim.api.nvim_win_get_cursor(0)
+    local line = vim.api.nvim_buf_get_lines(M.buffer, pos[1] - 1, pos[1], false)[1]
+        :sub(pos[2] + 1)
+
+    if vim.fn.matchstr(line, "^\\f\\+:\\d\\+:") == "" then
+        vim.cmd("normal! j")
+        return
+    end
+
+    line = vim.split(line, ":")
     vim.cmd([[
-      syntax match Label '^\f\+:'he=e-1
-      syntax match Number "exit code \d\+$"hs=s+10
-      syntax match Function '\%1l`.*`$'hs=s+1,he=e-1
-      syntax match Underlined '\f\+:\d\+\(:\d\+\)\?'
+        normal! zz
+        wincmd p
+        edit ]]..line[1])
 
-      syntax keyword Function succeeded
-      syntax keyword ErrorMsg error failed
-      syntax keyword WarningMsg note hint warning
-    ]])
-  end
-
-  compile.command = cmd
-  compile.run()
+    vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, (tonumber(line[3]) or 1) - 1})
 end
 
-function compile.this()
-  if not compile.open() then
-    compile.start()
-    return
-  end
-
-  local pos = vim.api.nvim_win_get_cursor(0)
-  local line = vim.api.nvim_buf_get_lines(compile.buffer, pos[1] - 1, pos[1], false)[1]
-    :sub(pos[2] + 1)
-
-  if vim.fn.matchstr(line, "^\\f\\+:\\d\\+:") == "" then
-    vim.cmd("normal! j")
-    return
-  end
-
-  line = vim.split(line, ":")
-  vim.cmd([[
-    normal! zz
-    wincmd p
-    edit ]]..line[1])
-
-  vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, (tonumber(line[3]) or 1) - 1})
+function M.next_with_col(prev)
+    if open() then
+        vim.fn.search("\\f\\+:\\d\\+:\\d\\+:", prev and "wb" or "w")
+        M.open()
+    else
+        M.start()
+    end
 end
 
-function compile.next_with_col(prev)
-  if compile.open() then
-    vim.fn.search("\\f\\+:\\d\\+:\\d\\+:", prev and "wb" or "w")
-    compile.this()
-  else
-    compile.start()
-  end
+function M.prev_with_col()
+    M.next_with_col(true)
 end
 
-function compile.prev_with_col()
-  compile.next_with_col(true)
+function M.next(prev)
+    if open() then
+        vim.fn.search("\\f\\+:\\d\\+:\\(\\d\\+:\\)\\?", prev and "wb" or "w")
+        M.open()
+    else
+        M.start()
+    end
 end
 
-function compile.next(prev)
-  if compile.open() then
-    vim.fn.search("\\f\\+:\\d\\+:\\(\\d\\+:\\)\\?", prev and "wb" or "w")
-    compile.this()
-  else
-    compile.start()
-  end
+function M.prev()
+    M.next(true)
 end
 
-function compile.prev()
-  compile.next(true)
+function M.restart()
+    M.start(M.cmd)
 end
 
-function compile.restart()
-  if compile.open() then
-    compile.stop()
-    vim.defer_fn(compile.run, 100)
-  else
-    compile.start()
-  end
+function M.stop()
+    if is_open() then
+        vim.fn.jobstop(vim.b[M.buffer].terminal_job_id)
+    end
 end
 
-function compile.bind(bindings)
-  for key, func in pairs(bindings or {}) do
-    compile.bindings[key] = func
-  end
+function M.bind(bindings)
+    for key, func in pairs(bindings or {}) do
+        M.bindings[key] = func
+    end
 end
 
-compile.bindings = {
-  ["r"] = compile.restart,
-  ["]e"] = compile.next_with_col,
-  ["[e"] = compile.prev_with_col,
-  ["]E"] = compile.next,
-  ["[E"] = compile.prev,
-  ["<cr>"] = compile.this,
-  ["<c-c>"] = compile.stop,
+M.bindings = {
+    ["r"] = M.restart,
+    ["]e"] = M.next_with_col,
+    ["[e"] = M.prev_with_col,
+    ["]E"] = M.next,
+    ["[E"] = M.prev,
+    ["<cr>"] = M.open,
+    ["<c-c>"] = M.stop,
 }
 
-return compile
+return M
