@@ -33,7 +33,7 @@ function M.start(cmd)
         vim.api.nvim_buf_delete(M.buffer, {force = true})
     end
 
-    vim.cmd("wall | new | terminal "..cmd)
+    vim.cmd("wall | split | terminal "..cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
 
     M.cmd = cmd
