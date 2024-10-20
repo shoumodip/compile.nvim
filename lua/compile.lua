@@ -33,12 +33,20 @@ function M.start(cmd)
         vim.api.nvim_buf_delete(M.buffer, {force = true})
     end
 
-    vim.cmd("wall | split | terminal "..cmd)
+    vim.cmd("wall | split | terminal echo Executing \\`"..vim.fn.shellescape(cmd).."\\`; echo; "..cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
 
     M.cmd = cmd
     M.buffer = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
+
+    vim.cmd([[
+        syntax match String '\%1l`.*`'
+        syntax match Keyword '\%1l^Executing\>'
+        syntax match ErrorMsg '^\[Process exited \d\+\]$'
+        syntax match Function '^\[Process exited 0\]$'
+        syntax match Underlined '\f\+:\d\+\(:\d\+\)\?'
+    ]])
 
     for key, func in pairs(M.bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
