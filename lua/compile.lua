@@ -40,13 +40,14 @@ function M.start(cmd)
     M.buffer = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
-    vim.cmd([[
-        syntax match String '\%1l`.*`'
-        syntax match Keyword '\%1l^Executing\>'
+    vim.cmd(string.format([[
+        syntax match String '\%%1l`.*`'
+        syntax match Keyword '\%%1l^Executing\>'
         syntax match ErrorMsg '^\[Process exited \d\+\]$'
         syntax match Function '^\[Process exited 0\]$'
-        syntax match Underlined '\f\+:\d\+\(:\d\+\)\?'
-    ]])
+        syntax match Underlined '%s'
+        syntax match Underlined '%s'
+    ]], M.pattern, M.pattern_with_col))
 
     for key, func in pairs(M.bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
@@ -63,23 +64,34 @@ function M.open()
     local line = vim.api.nvim_buf_get_lines(M.buffer, pos[1] - 1, pos[1], false)[1]
         :sub(pos[2] + 1)
 
-    if vim.fn.matchstr(line, "^\\f\\+:\\d\\+:") == "" then
-        vim.cmd("normal! j")
-        return
+    local match = vim.fn.matchlist(line, "^"..M.pattern_with_col)
+    if #match < 4 then
+        match = vim.fn.matchlist(line, "^"..M.pattern)
+        if #match < 3 then
+            return
+        end
     end
 
-    line = vim.split(line, ":")
-    vim.cmd([[
+    local file = match[2]
+    local row = tonumber(match[3]) or 1
+    local col = (tonumber(match[4]) or 1) - 1
+
+    vim.cmd(string.format([[
         normal! zz
         wincmd p
-        edit ]]..line[1])
+        %s %s]], vim.fn.bufloaded(file) == 0 and "edit" or "buffer", file))
 
-    vim.api.nvim_win_set_cursor(0, {tonumber(line[2]) or 1, (tonumber(line[3]) or 1) - 1})
+    if row == vim.fn.line("$") + 1 then
+        row = row - 1
+        col = #vim.fn.getline("$") - 1
+    end
+
+    pcall(vim.api.nvim_win_set_cursor, 0, {row, col})
 end
 
 function M.next_with_col(prev)
     if open() then
-        vim.fn.search("\\f\\+:\\d\\+:\\d\\+:", prev and "wb" or "w")
+        vim.fn.search(M.pattern_with_col, prev and "wb" or "w")
         M.open()
     else
         M.start()
@@ -92,7 +104,7 @@ end
 
 function M.next(prev)
     if open() then
-        vim.fn.search("\\f\\+:\\d\\+:\\(\\d\\+:\\)\\?", prev and "wb" or "w")
+        vim.fn.search(M.pattern, prev and "wb" or "w")
         M.open()
     else
         M.start()
@@ -128,5 +140,8 @@ M.bindings = {
     ["<cr>"] = M.open,
     ["<c-c>"] = M.stop,
 }
+
+M.pattern = "\\(\\f\\+\\):\\(\\d\\+\\):"
+M.pattern_with_col = "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\):"
 
 return M
