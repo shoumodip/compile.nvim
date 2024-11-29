@@ -76,10 +76,16 @@ function M.open()
     local row = tonumber(match[3]) or 1
     local col = (tonumber(match[4]) or 1) - 1
 
-    vim.cmd(string.format([[
+    vim.cmd([[
         normal! zz
         wincmd p
-        %s %s]], vim.fn.bufloaded(file) == 0 and "edit" or "buffer", file))
+    ]])
+
+    if vim.fn.bufloaded(file) == 0 then
+        vim.cmd("edit "..file)
+    else
+        vim.api.nvim_set_current_buf(vim.fn.bufnr(file))
+    end
 
     if row == vim.fn.line("$") + 1 then
         row = row - 1
