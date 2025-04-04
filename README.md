@@ -43,7 +43,7 @@ local compile = require("compile")
 compile.bind {
   ["n"] = compile.next,    -- Open the next error
   ["p"] = compile.prev,    -- Open the previous error
-  ["o"] = compile.this,    -- Open the error under the cursor
+  ["o"] = compile.open,    -- Open the error under the cursor
   ["r"] = compile.restart, -- Restart the compilation process
   ["q"] = compile.stop,    -- Stop the compilation process
 }
