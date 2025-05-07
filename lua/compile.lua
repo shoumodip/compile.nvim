@@ -41,6 +41,9 @@ function M.start(cmd)
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
     vim.cmd(string.format([[
+        syntax keyword Error error failed
+        syntax keyword WarningMsg hint note warning
+
         syntax match String '\%%1l`.*`'
         syntax match Keyword '\%%1l^Executing\>'
         syntax match ErrorMsg '^\[Process exited \d\+\]$'
