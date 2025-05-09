@@ -41,8 +41,8 @@ function M.start(cmd)
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
     vim.cmd(string.format([[
-        syntax keyword Error error failed
-        syntax keyword WarningMsg hint note warning
+        syntax keyword Error error Error ERROR
+        syntax keyword WarningMsg hint Hint HINT note Note NOTE warning Warning WARNING
 
         syntax match String '\%%1l`.*`'
         syntax match Keyword '\%%1l^Executing\>'
@@ -79,16 +79,11 @@ function M.open()
     local row = tonumber(match[3]) or 1
     local col = (tonumber(match[4]) or 1) - 1
 
-    vim.cmd([[
+    vim.cmd(string.format([[
         normal! zz
         wincmd p
-    ]])
-
-    if vim.fn.bufloaded(file) == 0 then
-        vim.cmd("edit "..file)
-    else
-        vim.api.nvim_set_current_buf(vim.fn.bufnr(file))
-    end
+        edit %s
+    ]], file))
 
     if row == vim.fn.line("$") + 1 then
         row = row - 1
