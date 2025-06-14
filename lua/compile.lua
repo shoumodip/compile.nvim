@@ -33,8 +33,15 @@ function M.start(cmd)
         vim.api.nvim_buf_delete(M.buffer, {force = true})
     end
 
+    -- Editor nerds try not to bikeshed challenge: difficulty impossible
+    local number_before = vim.api.nvim_win_get_option(0, "number")
+    local relativenumber_before = vim.api.nvim_win_get_option(0, "relativenumber")
+
     vim.cmd("wall | split | terminal echo Executing \\`"..vim.fn.shellescape(cmd).."\\`; echo; "..cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
+
+    vim.api.nvim_win_set_option(0, "number", number_before)
+    vim.api.nvim_win_set_option(0, "relativenumber", relativenumber_before)
 
     M.cmd = cmd
     M.buffer = vim.api.nvim_get_current_buf()
