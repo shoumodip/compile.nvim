@@ -82,18 +82,16 @@ Restart the compilation process.
 ### `compile.stop()`
 Stop the compilation process.
 
-### `compile.pattern`
-Compiler output format for error location without column.
+### `compile.add_pattern(name, with_col?, without_col?, use?)`
+Add a output format for error locations.
 
-The provided regex must have the file path as the first submatch, and the line
-number as the second.
+If either of `with_col` or `without_col` are not provided, then the one that is provided will be used as a fallback.
 
-Default: `\\(\\f\\+\\):\\(\\d\\+\\):`
+If both are not provided, then nothing will happen.
 
-### `compile.pattern_with_col`
-Compiler output format for error location with column.
+If `use` is provided as a "true" value, then this pattern will be set as the current pattern.
 
-The provided regex must have the file path as the first submatch, the line
-number as the second, and the column number as the third.
+### `compile.use_pattern(name?)`
+Set the current pattern.
 
-Default: `\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\):`
+If `name` is not provided, then it will be selected using the nvim native selection popup (`vim.ui.select`)

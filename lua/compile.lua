@@ -1,5 +1,8 @@
 local M = {}
 
+local pattern = {}  -- The currently active pattern
+local patterns = {} -- All the registered patterns
+
 local function is_open()
     return M.buffer and vim.api.nvim_buf_is_valid(M.buffer)
 end
@@ -47,6 +50,10 @@ function M.start(cmd)
     M.buffer = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
+    local function escape(s)
+        return s:gsub("/", "\\/")
+    end
+
     vim.cmd(string.format([[
         syntax keyword Error error Error ERROR
         syntax keyword WarningMsg hint Hint HINT note Note NOTE warning Warning WARNING
@@ -55,9 +62,9 @@ function M.start(cmd)
         syntax match Keyword '\%%1l^Executing\>'
         syntax match ErrorMsg '^\[Process exited \d\+\]$'
         syntax match Function '^\[Process exited 0\]$'
-        syntax match Underlined '%s'
-        syntax match Underlined '%s'
-    ]], M.pattern, M.pattern_with_col))
+        syntax match Underlined /%s/
+        syntax match Underlined /%s/
+    ]], escape(pattern.with_col), escape(pattern.without_col)))
 
     for key, func in pairs(M.bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
@@ -74,9 +81,9 @@ function M.open()
     local line = vim.api.nvim_buf_get_lines(M.buffer, pos[1] - 1, pos[1], false)[1]
         :sub(pos[2] + 1)
 
-    local match = vim.fn.matchlist(line, "^"..M.pattern_with_col)
+    local match = vim.fn.matchlist(line, "^"..pattern.with_col)
     if #match < 4 then
-        match = vim.fn.matchlist(line, "^"..M.pattern)
+        match = vim.fn.matchlist(line, "^"..pattern.without_col)
         if #match < 3 then
             return
         end
@@ -102,7 +109,7 @@ end
 
 function M.next_with_col(prev)
     if open() then
-        vim.fn.search(M.pattern_with_col, prev and "wb" or "w")
+        vim.fn.search(pattern.with_col, prev and "wb" or "w")
         M.open()
     else
         M.start()
@@ -115,7 +122,7 @@ end
 
 function M.next(prev)
     if open() then
-        vim.fn.search(M.pattern, prev and "wb" or "w")
+        vim.fn.search(pattern.without_col, prev and "wb" or "w")
         M.open()
     else
         M.start()
@@ -142,6 +149,42 @@ function M.bind(bindings)
     end
 end
 
+function M.add_pattern(name, with_col, without_col, use)
+    if not with_col then
+        with_col = without_col
+    end
+
+    if not without_col then
+        without_col = with_col
+    end
+
+    if not with_col then
+        return
+    end
+
+    patterns[name] = {
+        with_col = with_col,
+        without_col = without_col,
+    }
+
+    if use then
+        pattern = patterns[name]
+    end
+end
+
+function M.use_pattern(name)
+    if not name then
+        return vim.ui.select(vim.tbl_keys(patterns), {prompt = "Select Pattern"}, M.use_pattern)
+    end
+
+    local p = patterns[name]
+    if not p then
+        return
+    end
+
+    pattern = p
+end
+
 M.bindings = {
     ["r"] = M.restart,
     ["]e"] = M.next_with_col,
@@ -152,7 +195,11 @@ M.bindings = {
     ["<c-c>"] = M.stop,
 }
 
-M.pattern = "\\(\\f\\+\\):\\(\\d\\+\\):"
-M.pattern_with_col = "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\):"
+M.add_pattern(
+    "Default",
+    "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\):",
+    "\\(\\f\\+\\):\\(\\d\\+\\):",
+    true
+)
 
 return M
