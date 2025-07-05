@@ -64,7 +64,7 @@ function M.start(cmd)
         syntax match Function '^\[Process exited 0\]$'
         syntax match Underlined /%s/
         syntax match Underlined /%s/
-    ]], escape(pattern.with_col), escape(pattern.without_col)))
+    ]], escape(pattern.without_col), escape(pattern.with_col)))
 
     for key, func in pairs(M.bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
