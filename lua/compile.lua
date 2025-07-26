@@ -4,12 +4,20 @@ local pattern = {}  -- The currently active pattern
 local patterns = {} -- All the registered patterns
 
 local function is_open()
-    return M.buffer and vim.api.nvim_buf_is_valid(M.buffer)
+    if not M.buffer then
+        return false
+    end
+
+    if not vim.api.nvim_buf_is_valid(M.buffer) then
+        M.buffer = nil
+        return false
+    end
+
+    return true
 end
 
 local function open()
     if not is_open() then
-        M.buffer = nil
         return false
     end
 
@@ -22,6 +30,31 @@ local function open()
     end
 
     return true
+end
+
+local function apply_highlights()
+    if not is_open() then
+        return
+    end
+
+    local function escape(s)
+        return s:gsub("/", "\\/")
+    end
+
+    vim.api.nvim_buf_call(M.buffer, function ()
+        vim.cmd(string.format([[
+            syntax clear
+            syntax keyword Error error Error ERROR
+            syntax keyword WarningMsg hint Hint HINT note Note NOTE warning Warning WARNING
+
+            syntax match String '\%%1l`.*`'
+            syntax match Keyword '\%%1l^Executing\>'
+            syntax match ErrorMsg '^\[Process exited \d\+\]$'
+            syntax match Function '^\[Process exited 0\]$'
+            syntax match Underlined /%s/
+            syntax match Underlined /%s/
+        ]], escape(pattern.without_col), escape(pattern.with_col)))
+    end)
 end
 
 function M.start(cmd)
@@ -50,25 +83,11 @@ function M.start(cmd)
     M.buffer = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
-    local function escape(s)
-        return s:gsub("/", "\\/")
-    end
-
-    vim.cmd(string.format([[
-        syntax keyword Error error Error ERROR
-        syntax keyword WarningMsg hint Hint HINT note Note NOTE warning Warning WARNING
-
-        syntax match String '\%%1l`.*`'
-        syntax match Keyword '\%%1l^Executing\>'
-        syntax match ErrorMsg '^\[Process exited \d\+\]$'
-        syntax match Function '^\[Process exited 0\]$'
-        syntax match Underlined /%s/
-        syntax match Underlined /%s/
-    ]], escape(pattern.without_col), escape(pattern.with_col)))
-
     for key, func in pairs(M.bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
     end
+
+    apply_highlights()
 end
 
 function M.open()
@@ -174,7 +193,16 @@ end
 
 function M.use_pattern(name)
     if not name then
-        return vim.ui.select(vim.tbl_keys(patterns), {prompt = "Select Pattern"}, M.use_pattern)
+        local current = vim.api.nvim_get_current_win()
+        vim.cmd("wincmd p")
+        local previous = vim.api.nvim_get_current_win()
+        vim.cmd("wincmd p")
+
+        return vim.ui.select(vim.tbl_keys(patterns), {prompt = "Select Pattern"}, function (p)
+            vim.api.nvim_set_current_win(previous)
+            vim.api.nvim_set_current_win(current)
+            M.use_pattern(p)
+        end)
     end
 
     local p = patterns[name]
@@ -183,9 +211,11 @@ function M.use_pattern(name)
     end
 
     pattern = p
+    apply_highlights()
 end
 
 M.bindings = {
+    ["s"] = M.use_pattern,
     ["r"] = M.restart,
     ["]e"] = M.next_with_col,
     ["[e"] = M.prev_with_col,

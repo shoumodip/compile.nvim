@@ -15,8 +15,6 @@ Plug 'shoumodip/compile.nvim'
 | `:CompilePrev`           | Jump to the previous location                      |
 | `:CompileNextWithCol`    | Jump to the next location with column              |
 | `:CompilePrevWithCol`    | Jump to the previous location with column          |
-| `:CompilePattern`        | Set the compiler error location format             |
-| `:CompilePatternWithCol` | Set the compiler error location format with column |
 | `:Recompile`             | Rerun the compilation command                      |
 
 The `:Compile` command can also take an argument as a string. In that case, it will not prompt the user for the command, but rather execute the argument as the command.
@@ -28,6 +26,7 @@ The `:Compile` command can also take an argument as a string. In that case, it w
 ## Keybindings
 | Key     | Description                       |
 | ------- | --------------------------------- |
+| `s`     | Switch error patterns             |
 | `r`     | Restart the compilation process   |
 | `]e`    | Open the next error at column     |
 | `[e`    | Open the previous error at column |
