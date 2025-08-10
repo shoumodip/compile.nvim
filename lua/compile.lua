@@ -69,7 +69,6 @@ function M.start(cmd)
         vim.api.nvim_buf_delete(M.buffer, {force = true})
     end
 
-    -- Editor nerds try not to bikeshed challenge: difficulty impossible
     local number_before = vim.api.nvim_win_get_option(0, "number")
     local relativenumber_before = vim.api.nvim_win_get_option(0, "relativenumber")
 
@@ -90,40 +89,76 @@ function M.start(cmd)
     apply_highlights()
 end
 
+local function current_match(row, col, line, pattern, order)
+    local p = 0
+    while true do
+        local match_text, match_begin, match_end = unpack(vim.fn.matchstrpos(line, pattern, p))
+        if match_begin == -1 then
+            return nil
+        end
+
+        if col >= match_begin and col < match_end then
+            local list = vim.fn.matchlist(match_text, pattern)
+            local result = {}
+            for i, field in ipairs(order) do
+                local val = list[i + 1]
+                result[field] = (field == "row" or field == "col") and tonumber(val) or val
+            end
+            return result
+        end
+
+        p = match_end
+    end
+end
+
+local function edit_file(path)
+    local fullpath = vim.fn.fnamemodify(path, ":p")
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) then
+            local bufname = vim.api.nvim_buf_get_name(bufnr)
+            if vim.fn.fnamemodify(bufname, ":p") == fullpath then
+                vim.api.nvim_set_current_buf(bufnr)
+                return
+            end
+        end
+    end
+
+    vim.cmd.edit(fullpath)
+end
+
 function M.open()
     if not open() then
         M.start()
         return
     end
 
-    local pos = vim.api.nvim_win_get_cursor(0)
-    local line = vim.api.nvim_buf_get_lines(M.buffer, pos[1] - 1, pos[1], false)[1]
-        :sub(pos[2] + 1)
+    local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+    local line = vim.api.nvim_get_current_line()
 
-    local match = vim.fn.matchlist(line, "^"..pattern.with_col)
-    if #match < 4 then
-        match = vim.fn.matchlist(line, "^"..pattern.without_col)
-        if #match < 3 then
-            return
-        end
+    local result = current_match(row, col, line, pattern.with_col, pattern.with_col_order)
+    if not result then
+        result = current_match(row, col, line, pattern.without_col, pattern.without_col_order)
     end
 
-    local file = match[2]
-    local row = tonumber(match[3]) or 1
-    local col = (tonumber(match[4]) or 1) - 1
+    if result.col then
+        result.col = result.col - 1
+    else
+        result.col = 0
+    end
 
-    vim.cmd(string.format([[
+    vim.cmd([[
         normal! zz
         wincmd p
-        edit %s
-    ]], file))
+    ]])
 
-    if row == vim.fn.line("$") + 1 then
-        row = row - 1
-        col = #vim.fn.getline("$") - 1
+    edit_file(result.path)
+
+    if result.row == vim.fn.line("$") + 1 then
+        result.row = result.row - 1
+        result.col = #vim.fn.getline("$") - 1
     end
 
-    pcall(vim.api.nvim_win_set_cursor, 0, {row, col})
+    pcall(vim.api.nvim_win_set_cursor, 0, {result.row, result.col})
 end
 
 function M.next_with_col(prev)
@@ -168,6 +203,25 @@ function M.bind(bindings)
     end
 end
 
+local function compile_pattern(pattern)
+    local order = {}
+    local replacements = {
+        ["[<path>]"] = "\\(\\f\\+\\)",
+        ["[<row>]"]  = "\\(\\d\\+\\)",
+        ["[<col>]"]  = "\\(\\d\\+\\)",
+    }
+
+    pattern = pattern:gsub("%[<%a+>%]", function(token)
+        local replacement = replacements[token]
+        if replacement then
+            table.insert(order, token:sub(3, -3))
+            return replacement
+        end
+    end)
+
+    return pattern, order
+end
+
 function M.add_pattern(name, with_col, without_col, use)
     if not with_col then
         with_col = without_col
@@ -181,9 +235,15 @@ function M.add_pattern(name, with_col, without_col, use)
         return
     end
 
+    local with_col_compiled, with_col_order = compile_pattern(with_col)
+    local without_col_compiled, without_col_order = compile_pattern(without_col)
+
     patterns[name] = {
-        with_col = with_col,
-        without_col = without_col,
+        with_col = with_col_compiled,
+        without_col = without_col_compiled,
+
+        with_col_order = with_col_order,
+        without_col_order = without_col_order,
     }
 
     if use then
@@ -195,6 +255,7 @@ function M.use_pattern(name)
     if not name then
         local current = vim.api.nvim_get_current_win()
         vim.cmd("wincmd p")
+
         local previous = vim.api.nvim_get_current_win()
         vim.cmd("wincmd p")
 
@@ -227,8 +288,8 @@ M.bindings = {
 
 M.add_pattern(
     "Default",
-    "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\):",
-    "\\(\\f\\+\\):\\(\\d\\+\\):",
+    "[<path>]:[<row>]:[<col>]:",
+    "[<path>]:[<row>]:",
     true
 )
 

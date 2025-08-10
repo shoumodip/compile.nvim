@@ -90,6 +90,10 @@ If both are not provided, then nothing will happen.
 
 If `use` is provided as a "true" value, then this pattern will be set as the current pattern.
 
+**NOTE:** Use `[<path>]`, `[<row>]`, and `[<col>]` specifically to denote the meanings as such.
+
+**Example:** `"[<path>]:[<row>]:[<col>]:"`.
+
 ### `compile.use_pattern(name?)`
 Set the current pattern.
 
