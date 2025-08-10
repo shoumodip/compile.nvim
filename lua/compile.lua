@@ -161,6 +161,13 @@ function M.open()
     pcall(vim.api.nvim_win_set_cursor, 0, {result.row, result.col})
 end
 
+function M.open_mouse_click()
+    local mouse = vim.fn.getmousepos()
+    vim.api.nvim_set_current_win(mouse.winid)
+    vim.api.nvim_win_set_cursor(mouse.winid, { mouse.line, math.max(mouse.column - 1, 0) })
+    M.open()
+end
+
 function M.next_with_col(prev)
     if open() then
         vim.fn.search(pattern.with_col, prev and "wb" or "w")
@@ -283,6 +290,7 @@ M.bindings = {
     ["]E"] = M.next,
     ["[E"] = M.prev,
     ["<cr>"] = M.open,
+    ["<leftmouse>"] = M.open_mouse_click,
     ["<c-c>"] = M.stop,
 }
 
