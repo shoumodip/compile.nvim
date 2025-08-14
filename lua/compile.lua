@@ -140,6 +140,10 @@ function M.open()
         result = current_match(row, col, line, pattern.without_col, pattern.without_col_order)
     end
 
+    if not result then
+        return
+    end
+
     if result.col then
         result.col = result.col - 1
     else
