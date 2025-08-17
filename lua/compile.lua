@@ -222,15 +222,58 @@ local function compile_pattern(pattern)
         ["[<col>]"]  = "\\(\\d\\+\\)",
     }
 
-    pattern = pattern:gsub("%[<%a+>%]", function(token)
+    local compiled = pattern:gsub("%[<%a+>%]", function(token)
+        if not order then
+            return nil
+        end
+
         local replacement = replacements[token]
         if replacement then
-            table.insert(order, token:sub(3, -3))
+            local title = token:sub(3, -3)
+            if vim.tbl_contains(order, title) then
+                vim.api.nvim_echo({
+                    {"Invalid pattern ", "Error"},
+                    {vim.fn.shellescape(pattern), "String"},
+                    {". ", "Error"},
+                    {"(Duplicate specifier ", "WarningMsg"},
+                    {"'[<"..title..">]'", "String"},
+                    {")\n", "WarningMsg"}
+                }, true, {})
+
+                order = nil
+                return nil
+            end
+
+            table.insert(order, title)
             return replacement
         end
     end)
 
-    return pattern, order
+    if not order then
+        return nil, nil
+    end
+
+    local path_absent = not vim.tbl_contains(order, "path")
+    local row_absent = not vim.tbl_contains(order, "row")
+
+    if path_absent or row_absent then
+        vim.api.nvim_echo({
+            {"Invalid pattern ", "Error"},
+            {vim.fn.shellescape(pattern), "String"},
+            {". ", "Error"},
+            {path_absent and row_absent and "(Specifiers " or "(Specifier ", "WarningMsg"},
+            {path_absent and "'[<path>]'" or "", "String"},
+            {path_absent and row_absent and " and " or "", "WarningMsg"},
+            {row_absent and "'[<row>]'" or "", "String"},
+            {" absent)\n\n", "WarningMsg"},
+            {"Example Pattern: ", "Title"},
+            {"'[<path>]:[<row>]:[<col>]:'\n", "String"}
+        }, true, {})
+
+        return nil, nil
+    end
+
+    return compiled, order
 end
 
 function M.add_pattern(name, with_col, without_col, use)
@@ -247,7 +290,14 @@ function M.add_pattern(name, with_col, without_col, use)
     end
 
     local with_col_compiled, with_col_order = compile_pattern(with_col)
+    if not with_col_compiled then
+        return
+    end
+
     local without_col_compiled, without_col_order = compile_pattern(without_col)
+    if not without_col_compiled then
+        return
+    end
 
     patterns[name] = {
         with_col = with_col_compiled,
