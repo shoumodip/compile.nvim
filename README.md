@@ -8,14 +8,14 @@ Compilation integration for Neovim
 Plug 'shoumodip/compile.nvim'
 ```
 
-| Name                     | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| `:Compile`               | Start a compilation command                        |
-| `:CompileNext`           | Jump to the next location                          |
-| `:CompilePrev`           | Jump to the previous location                      |
-| `:CompileNextWithCol`    | Jump to the next location with column              |
-| `:CompilePrevWithCol`    | Jump to the previous location with column          |
-| `:Recompile`             | Rerun the compilation command                      |
+| Name                    | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `:Compile`              | Start a compilation command                     |
+| `:CompileNext`          | Jump to the next location                       |
+| `:CompilePrev`          | Jump to the previous location                   |
+| `:CompileNextSecondary` | Jump to the next location secondary pattern     |
+| `:CompilePrevSecondary` | Jump to the previous location secondary pattern |
+| `:Recompile`            | Rerun the compilation command                   |
 
 The `:Compile` command can also take an argument as a string. In that case, it will not prompt the user for the command, but rather execute the argument as the command.
 
@@ -24,27 +24,43 @@ The `:Compile` command can also take an argument as a string. In that case, it w
 ```
 
 ## Keybindings
-| Key     | Description                       |
-| ------- | --------------------------------- |
-| `s`     | Switch error patterns             |
-| `r`     | Restart the compilation process   |
-| `]e`    | Open the next error at column     |
-| `[e`    | Open the previous error at column |
-| `]E`    | Open the next error               |
-| `[E`    | Open the previous error           |
-| `<cr>`  | Open the error under the cursor   |
-| `<c-c>` | Stop the process                  |
+| Key     | Description                                 |
+| ------- | ------------------------------------------- |
+| `s`     | Switch error patterns                       |
+| `r`     | Restart the compilation process             |
+| `]e`    | Open the next error                         |
+| `[e`    | Open the previous error                     |
+| `]E`    | Open the next error (secondary pattern)     |
+| `[E`    | Open the previous error (secondary pattern) |
+| `<cr>`  | Open the error under the cursor             |
+| `<c-c>` | Stop the process                            |
 
-Keybindings can be customized.
+## Configuration
 
 ```lua
 local compile = require("compile")
-compile.bind {
-  ["n"] = compile.next,    -- Open the next error
-  ["p"] = compile.prev,    -- Open the previous error
-  ["o"] = compile.open,    -- Open the error under the cursor
-  ["r"] = compile.restart, -- Restart the compilation process
-  ["q"] = compile.stop,    -- Stop the compilation process
+compile.setup {
+    bindings = {
+        ["n"] = compile.next,    -- Open the next error
+        ["p"] = compile.prev,    -- Open the previous error
+        ["o"] = compile.open,    -- Open the error under the cursor
+        ["r"] = compile.restart, -- Restart the compilation process
+        ["q"] = compile.stop,    -- Stop the compilation process
+    },
+
+    patterns = {
+        -- A string can be provided as the singular primary pattern
+        Odin = "[<path>]([<row>]:[<col>])",
+
+        -- Or, it can be be more detailed
+        Rust = {
+            "[<path>]:[<row>]:[<col>]", -- Primary pattern
+            "[<path>]:[<row>]",         -- Secondary pattern
+            use = true                  -- Set this as default
+        },
+
+        Python = 'File "[<path>]", line [<row>]',
+    }
 }
 ```
 
@@ -59,21 +75,17 @@ Execute `cmd` as a compilation process.
 ### `compile.open()`
 Open the file location under the cursor.
 
-### `compile.next_with_col(prev?)`
-Open the next file location with mandatory column number.
-
-If the argument `prev` is provided with a "true" value, then it opens the previous error instead.
-
-### `compile.prev_with_col()`
-Open the previous file location with mandatory column number.
-
-### `compile.next(prev?)`
+### `compile.next()`
 Open the next file location.
-
-If the argument `prev` is provided with a "true" value, then it opens the previous error instead.
 
 ### `compile.prev()`
 Open the previous file location.
+
+### `compile.next_secondary(prev?)`
+Open the next file location (secondary pattern).
+
+### `compile.prev_secondary()`
+Open the previous file location (secondary pattern).
 
 ### `compile.restart()`
 Restart the compilation process.
@@ -81,10 +93,10 @@ Restart the compilation process.
 ### `compile.stop()`
 Stop the compilation process.
 
-### `compile.add_pattern(name, with_col?, without_col?, use?)`
+### `compile.add_pattern(name, primary?, secondary?, use?)`
 Add a output format for error locations.
 
-If either of `with_col` or `without_col` are not provided, then the one that is provided will be used as a fallback.
+If either of `primary` or `secondary` are not provided, then the one that is provided will be used as a fallback.
 
 If both are not provided, then nothing will happen.
 

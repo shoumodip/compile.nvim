@@ -2,6 +2,7 @@ local M = {}
 
 local pattern = {}  -- The currently active pattern
 local patterns = {} -- All the registered patterns
+local bindings = {} -- The bindings
 
 local function is_open()
     if not M.buffer then
@@ -53,7 +54,7 @@ local function apply_highlights()
             syntax match Function '^\[Process exited 0\]$'
             syntax match Underlined /%s/
             syntax match Underlined /%s/
-        ]], escape(pattern.without_col), escape(pattern.with_col)))
+        ]], escape(pattern.secondary), escape(pattern.primary)))
     end)
 end
 
@@ -82,7 +83,7 @@ function M.start(cmd)
     M.buffer = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
-    for key, func in pairs(M.bindings) do
+    for key, func in pairs(bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
     end
 
@@ -135,9 +136,9 @@ function M.open()
     local row, col = unpack(vim.api.nvim_win_get_cursor(0))
     local line = vim.api.nvim_get_current_line()
 
-    local result = current_match(row, col, line, pattern.with_col, pattern.with_col_order)
+    local result = current_match(row, col, line, pattern.primary, pattern.primary_order)
     if not result then
-        result = current_match(row, col, line, pattern.without_col, pattern.without_col_order)
+        result = current_match(row, col, line, pattern.secondary, pattern.secondary_order)
     end
 
     if not result then
@@ -172,30 +173,32 @@ function M.open_mouse_click()
     M.open()
 end
 
-function M.next_with_col(prev)
-    if open() then
-        vim.fn.search(pattern.with_col, prev and "wb" or "w")
-        M.open()
-    else
+function M.next(secondary)
+    if not open() then
         M.start()
+        return
     end
+
+    vim.fn.search(secondary and pattern.secondary or pattern.primary, "w")
+    M.open()
 end
 
-function M.prev_with_col()
-    M.next_with_col(true)
-end
-
-function M.next(prev)
-    if open() then
-        vim.fn.search(pattern.without_col, prev and "wb" or "w")
-        M.open()
-    else
+function M.prev(secondary)
+    if not open() then
         M.start()
+        return
     end
+
+    vim.fn.search(secondary and pattern.secondary or pattern.primary, "wb")
+    M.open()
 end
 
-function M.prev()
+function M.next_secondary()
     M.next(true)
+end
+
+function M.prev_secondary()
+    M.prev(true)
 end
 
 function M.restart()
@@ -205,12 +208,6 @@ end
 function M.stop()
     if is_open() then
         vim.fn.jobstop(vim.b[M.buffer].terminal_job_id)
-    end
-end
-
-function M.bind(bindings)
-    for key, func in pairs(bindings or {}) do
-        M.bindings[key] = func
     end
 end
 
@@ -276,35 +273,35 @@ local function compile_pattern(pattern)
     return compiled, order
 end
 
-function M.add_pattern(name, with_col, without_col, use)
-    if not with_col then
-        with_col = without_col
+function M.add_pattern(name, primary, secondary, use)
+    if not primary then
+        primary = secondary
     end
 
-    if not without_col then
-        without_col = with_col
+    if not secondary then
+        secondary = primary
     end
 
-    if not with_col then
+    if not primary then
         return
     end
 
-    local with_col_compiled, with_col_order = compile_pattern(with_col)
-    if not with_col_compiled then
+    local primary_compiled, primary_order = compile_pattern(primary)
+    if not primary_compiled then
         return
     end
 
-    local without_col_compiled, without_col_order = compile_pattern(without_col)
-    if not without_col_compiled then
+    local secondary_compiled, secondary_order = compile_pattern(secondary)
+    if not secondary_compiled then
         return
     end
 
     patterns[name] = {
-        with_col = with_col_compiled,
-        without_col = without_col_compiled,
+        primary = primary_compiled,
+        secondary = secondary_compiled,
 
-        with_col_order = with_col_order,
-        without_col_order = without_col_order,
+        primary_order = primary_order,
+        secondary_order = secondary_order,
     }
 
     if use then
@@ -336,23 +333,43 @@ function M.use_pattern(name)
     apply_highlights()
 end
 
-M.bindings = {
-    ["s"] = M.use_pattern,
-    ["r"] = M.restart,
-    ["]e"] = M.next_with_col,
-    ["[e"] = M.prev_with_col,
-    ["]E"] = M.next,
-    ["[E"] = M.prev,
-    ["<cr>"] = M.open,
-    ["<leftmouse>"] = M.open_mouse_click,
-    ["<c-c>"] = M.stop,
-}
+function M.bind(bs)
+    for key, func in pairs(bs or {}) do
+        bindings[key] = func
+    end
+end
 
-M.add_pattern(
-    "Default",
-    "[<path>]:[<row>]:[<col>]:",
-    "[<path>]:[<row>]:",
-    true
-)
+function M.setup(opts)
+    M.bind(opts.bindings)
+    for name, pattern in pairs(opts.patterns or {}) do
+        if type(pattern) == "string" then
+            M.add_pattern(name, pattern)
+        else
+            M.add_pattern(name, pattern[1], pattern[2], pattern.use)
+        end
+    end
+end
+
+M.setup {
+    bindings = {
+        ["s"] = M.use_pattern,
+        ["r"] = M.restart,
+        ["]e"] = M.next,
+        ["[e"] = M.prev,
+        ["]E"] = M.next_secondary,
+        ["[E"] = M.prev_secondary,
+        ["<cr>"] = M.open,
+        ["<c-c>"] = M.stop,
+        ["<leftmouse>"] = M.open_mouse_click,
+    },
+
+    patterns = {
+        Default = {
+            "[<path>]:[<row>]:[<col>]:",
+            "[<path>]:[<row>]:",
+            use = true
+        }
+    }
+}
 
 return M
