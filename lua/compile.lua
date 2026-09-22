@@ -116,20 +116,6 @@ function M.start(cmd)
                 end
             end
 
-            local function format_duration(seconds)
-                local hours = math.floor(seconds / 3600)
-                local minutes = math.floor((seconds % 3600) / 60)
-                local secs = seconds % 60
-
-                if hours > 0 then
-                    return string.format("%d hr %d min %.2f sec", hours, minutes, secs)
-                elseif minutes > 0 then
-                    return string.format("%d min %.2f sec", minutes, secs)
-                else
-                    return string.format("%.2f sec", secs)
-                end
-            end
-
             local hours = math.floor(duration / 3600)
             local minutes = math.floor((duration % 3600) / 60)
             local seconds = duration % 60
