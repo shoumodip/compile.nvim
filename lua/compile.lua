@@ -45,9 +45,6 @@ local function apply_highlights()
     vim.api.nvim_buf_call(M.buffer, function ()
         vim.cmd(string.format([[
             syntax clear
-            syntax keyword Error error Error ERROR
-            syntax keyword WarningMsg hint Hint HINT note Note NOTE warning Warning WARNING
-
             syntax match String '\%%1l`.*`'
             syntax match Keyword '\%%1l^Executing\>'
             syntax match ErrorMsg '^\[Process exited \d\+\]$'
@@ -66,14 +63,24 @@ function M.start(cmd)
         end
     end
 
+    local previous = nil
     if is_open() then
-        vim.api.nvim_buf_delete(M.buffer, {force = true})
+        if vim.fn.bufwinid(M.buffer) == -1 then
+            vim.api.nvim_buf_delete(M.buffer, {force = true})
+        else
+            previous = M.buffer
+        end
     end
 
     local number_before = vim.api.nvim_win_get_option(0, "number")
     local relativenumber_before = vim.api.nvim_win_get_option(0, "relativenumber")
 
-    vim.cmd("wall | split | terminal echo Executing \\`"..vim.fn.shellescape(cmd).."\\`; echo; "..cmd)
+    vim.cmd("wall")
+    if not previous then
+        vim.cmd("split")
+    end
+
+    vim.cmd("terminal echo Executing \\`"..vim.fn.shellescape(cmd).."\\`; echo; "..cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
 
     vim.api.nvim_win_set_option(0, "number", number_before)
@@ -81,6 +88,9 @@ function M.start(cmd)
 
     M.cmd = cmd
     M.buffer = vim.api.nvim_get_current_buf()
+    if previous then
+        vim.api.nvim_buf_delete(previous, {force = true})
+    end
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
 
     for key, func in pairs(bindings) do
