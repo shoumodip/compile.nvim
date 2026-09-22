@@ -13,11 +13,11 @@ Plug 'shoumodip/compile.nvim'
 | `:Compile`              | Start a compilation command                     |
 | `:CompileNext`          | Jump to the next location                       |
 | `:CompilePrev`          | Jump to the previous location                   |
-| `:CompileNextSecondary` | Jump to the next location secondary pattern     |
-| `:CompilePrevSecondary` | Jump to the previous location secondary pattern |
 | `:Recompile`            | Rerun the compilation command                   |
 
-The `:Compile` command can also take an argument as a string. In that case, it will not prompt the user for the command, but rather execute the argument as the command.
+The `:Compile` command can also take an argument as a string. In that case, it
+will not prompt the user for the command, but rather execute the argument as
+the command.
 
 ```vim
 :Compile <command>
@@ -30,8 +30,6 @@ The `:Compile` command can also take an argument as a string. In that case, it w
 | `r`     | Restart the compilation process             |
 | `]e`    | Open the next error                         |
 | `[e`    | Open the previous error                     |
-| `]E`    | Open the next error (secondary pattern)     |
-| `[E`    | Open the previous error (secondary pattern) |
 | `<cr>`  | Open the error under the cursor             |
 | `<c-c>` | Stop the process                            |
 
@@ -49,17 +47,20 @@ compile.setup {
     },
 
     patterns = {
-        -- A string can be provided as the singular primary pattern
-        Odin = "[<path>]([<row>]:[<col>])",
+        -- A string can be provided as the pattern
+        Odin = "\\(\\f\\+\\)(\\(\\d\\+\\):\\(\\d\\+\\))",
 
-        -- Or, it can be be more detailed
-        Rust = {
-            "[<path>]:[<row>]:[<col>]", -- Primary pattern
-            "[<path>]:[<row>]",         -- Secondary pattern
-            use = true                  -- Set this as default
+        -- By default, the submatches 1, 2, and 3 are considered the path, row, and column respectively.
+        -- But you can customize that.
+        Foo = {
+            -- The hypothetical foo compiler emits diagnostics as "COLUMN -- PATH:ROW"
+            "\\(\\d\\+\\) -- \\(\\f\\+\\):\\(\\d\\+\\)",
+            col = 1,  -- The first submatch
+            path = 2, -- The second submatch
+            row = 3,  -- The third submatch
         },
 
-        Python = 'File "[<path>]", line [<row>]',
+        -- See ':h matchlist()' and ':h submatch()' if you don't know the concept of submatches.
     }
 }
 ```
@@ -81,32 +82,13 @@ Open the next file location.
 ### `compile.prev()`
 Open the previous file location.
 
-### `compile.next_secondary(prev?)`
-Open the next file location (secondary pattern).
-
-### `compile.prev_secondary()`
-Open the previous file location (secondary pattern).
-
 ### `compile.restart()`
 Restart the compilation process.
 
 ### `compile.stop()`
 Stop the compilation process.
 
-### `compile.add_pattern(name, primary?, secondary?, use?)`
-Add a output format for error locations.
-
-If either of `primary` or `secondary` are not provided, then the one that is provided will be used as a fallback.
-
-If both are not provided, then nothing will happen.
-
-If `use` is provided as a "true" value, then this pattern will be set as the current pattern.
-
-**NOTE:** Use `[<path>]`, `[<row>]`, and `[<col>]` specifically to denote the meanings as such.
-
-**Example:** `"[<path>]:[<row>]:[<col>]:"`.
-
-### `compile.use_pattern(name?)`
+### `compile.pattern(name?)`
 Set the current pattern.
 
 If `name` is not provided, then it will be selected using the nvim native selection popup (`vim.ui.select`)

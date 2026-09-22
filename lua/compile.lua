@@ -47,8 +47,7 @@ local function apply_highlights()
             syntax clear
             syntax match String '\%%1l`.*`$'
             syntax match Underlined /%s/
-            syntax match Underlined /%s/
-        ]], escape(pattern.secondary), escape(pattern.primary)))
+        ]], escape(pattern[1])))
     end)
 end
 
@@ -145,28 +144,6 @@ function M.start(cmd)
     apply_highlights()
 end
 
-local function current_match(row, col, line, pattern, order)
-    local p = 0
-    while true do
-        local match_text, match_begin, match_end = unpack(vim.fn.matchstrpos(line, pattern, p))
-        if match_begin == -1 then
-            return nil
-        end
-
-        if col >= match_begin and col < match_end then
-            local list = vim.fn.matchlist(match_text, pattern)
-            local result = {}
-            for i, field in ipairs(order) do
-                local val = list[i + 1]
-                result[field] = (field == "row" or field == "col") and tonumber(val) or val
-            end
-            return result
-        end
-
-        p = match_end
-    end
-end
-
 local function edit_file(path)
     local fullpath = vim.fn.fnamemodify(path, ":p")
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
@@ -191,34 +168,58 @@ function M.open()
     local row, col = unpack(vim.api.nvim_win_get_cursor(0))
     local line = vim.api.nvim_get_current_line()
 
-    local result = current_match(row, col, line, pattern.primary, pattern.primary_order)
-    if not result then
-        result = current_match(row, col, line, pattern.secondary, pattern.secondary_order)
+    local cursor = 0
+    local result = {}
+    while true do
+        local match_text, match_begin, match_end = unpack(vim.fn.matchstrpos(line, pattern[1], cursor))
+        if match_begin == -1 then
+            return
+        end
+
+        if col >= match_begin and col < match_end then
+            local list = vim.fn.matchlist(match_text, pattern[1])
+            if #vim.tbl_keys(pattern) == 1 then
+                table.insert(result, list[2])
+                table.insert(result, list[3])
+                table.insert(result, list[4])
+            else
+                table.insert(result, list[1 + pattern.path])
+                table.insert(result, list[1 + pattern.row])
+                table.insert(result, list[1 + pattern.col])
+            end
+            break
+        end
+
+        cursor = match_end
     end
 
-    if not result then
-        return
-    end
-
-    if result.col then
-        result.col = result.col - 1
+    local path = result[1]
+    local row  = result[2]
+    if row then
+        row = tonumber(row)
     else
-        result.col = 0
+        row = 1
+    end
+
+    local col  = result[3]
+    if col then
+        col = tonumber(col) - 1
+    else
+        col = 0
     end
 
     vim.cmd([[
         normal! zz
         wincmd p
     ]])
+    edit_file(path)
 
-    edit_file(result.path)
-
-    if result.row == vim.fn.line("$") + 1 then
-        result.row = result.row - 1
-        result.col = #vim.fn.getline("$") - 1
+    if row == vim.fn.line("$") + 1 then
+        row = row - 1
+        col = #vim.fn.getline("$") - 1
     end
 
-    pcall(vim.api.nvim_win_set_cursor, 0, {result.row, result.col})
+    pcall(vim.api.nvim_win_set_cursor, 0, {row, col})
     vim.cmd("normal! zz")
 end
 
@@ -229,32 +230,24 @@ function M.open_mouse_click()
     M.open()
 end
 
-function M.next(secondary)
+function M.next()
     if not open() then
         M.start()
         return
     end
 
-    vim.fn.search(secondary and pattern.secondary or pattern.primary, "w")
+    vim.fn.search(pattern[1], "w")
     M.open()
 end
 
-function M.prev(secondary)
+function M.prev()
     if not open() then
         M.start()
         return
     end
 
-    vim.fn.search(secondary and pattern.secondary or pattern.primary, "wb")
+    vim.fn.search(pattern[1], "wb")
     M.open()
-end
-
-function M.next_secondary()
-    M.next(true)
-end
-
-function M.prev_secondary()
-    M.prev(true)
 end
 
 function M.restart()
@@ -267,105 +260,7 @@ function M.stop()
     end
 end
 
-local function compile_pattern(pattern)
-    local order = {}
-    local replacements = {
-        ["[<path>]"] = "\\(\\f\\+\\)",
-        ["[<row>]"]  = "\\(\\d\\+\\)",
-        ["[<col>]"]  = "\\(\\d\\+\\)",
-    }
-
-    local compiled = pattern:gsub("%[<%a+>%]", function(token)
-        if not order then
-            return nil
-        end
-
-        local replacement = replacements[token]
-        if replacement then
-            local title = token:sub(3, -3)
-            if vim.tbl_contains(order, title) then
-                vim.api.nvim_echo({
-                    {"Invalid pattern ", "Error"},
-                    {vim.fn.shellescape(pattern), "String"},
-                    {". ", "Error"},
-                    {"(Duplicate specifier ", "WarningMsg"},
-                    {"'[<"..title..">]'", "String"},
-                    {")\n", "WarningMsg"}
-                }, true, {})
-
-                order = nil
-                return nil
-            end
-
-            table.insert(order, title)
-            return replacement
-        end
-    end)
-
-    if not order then
-        return nil, nil
-    end
-
-    local path_absent = not vim.tbl_contains(order, "path")
-    local row_absent = not vim.tbl_contains(order, "row")
-
-    if path_absent or row_absent then
-        vim.api.nvim_echo({
-            {"Invalid pattern ", "Error"},
-            {vim.fn.shellescape(pattern), "String"},
-            {". ", "Error"},
-            {path_absent and row_absent and "(Specifiers " or "(Specifier ", "WarningMsg"},
-            {path_absent and "'[<path>]'" or "", "String"},
-            {path_absent and row_absent and " and " or "", "WarningMsg"},
-            {row_absent and "'[<row>]'" or "", "String"},
-            {" absent)\n\n", "WarningMsg"},
-            {"Example Pattern: ", "Title"},
-            {"'[<path>]:[<row>]:[<col>]:'\n", "String"}
-        }, true, {})
-
-        return nil, nil
-    end
-
-    return compiled, order
-end
-
-function M.add_pattern(name, primary, secondary, use)
-    if not primary then
-        primary = secondary
-    end
-
-    if not secondary then
-        secondary = primary
-    end
-
-    if not primary then
-        return
-    end
-
-    local primary_compiled, primary_order = compile_pattern(primary)
-    if not primary_compiled then
-        return
-    end
-
-    local secondary_compiled, secondary_order = compile_pattern(secondary)
-    if not secondary_compiled then
-        return
-    end
-
-    patterns[name] = {
-        primary = primary_compiled,
-        secondary = secondary_compiled,
-
-        primary_order = primary_order,
-        secondary_order = secondary_order,
-    }
-
-    if use then
-        pattern = patterns[name]
-    end
-end
-
-function M.use_pattern(name)
+function M.pattern(name)
     if not name then
         local current = vim.api.nvim_get_current_win()
         vim.cmd("wincmd p")
@@ -373,10 +268,18 @@ function M.use_pattern(name)
         local previous = vim.api.nvim_get_current_win()
         vim.cmd("wincmd p")
 
-        return vim.ui.select(vim.tbl_keys(patterns), {prompt = "Select Pattern"}, function (p)
+        local names = vim.tbl_keys(patterns)
+        for i, name in ipairs(names) do
+            if patterns[name] == pattern then
+                table.insert(names, 1, table.remove(names, i))
+                break
+            end
+        end
+
+        return vim.ui.select(names, {prompt = "Select Pattern"}, function (p)
             vim.api.nvim_set_current_win(previous)
             vim.api.nvim_set_current_win(current)
-            M.use_pattern(p)
+            M.pattern(p)
         end)
     end
 
@@ -399,33 +302,65 @@ function M.setup(opts)
     M.bind(opts.bindings)
     for name, pattern in pairs(opts.patterns or {}) do
         if type(pattern) == "string" then
-            M.add_pattern(name, pattern)
-        else
-            M.add_pattern(name, pattern[1], pattern[2], pattern.use)
+            pattern = {pattern}
         end
+
+        if type(pattern) ~= "table" then
+            error("Expected pattern to be string or table, got "..type(pattern))
+        end
+
+        for key, value in pairs(pattern) do
+            local expected = nil
+            if key == 1 then
+                expected = "string"
+            elseif key == "path" or key == "row" or key == "col" then
+                expected = "number"
+            else
+                error("Invalid key '"..key.."' in pattern")
+            end
+
+            local actual = type(value)
+            if actual ~= expected then
+                error("Expected key '"..key.."' of pattern to be "..expected..", got "..actual)
+            end
+        end
+
+        if not pattern[1] then
+            error("The pattern string is missing")
+        end
+
+        if #vim.tbl_keys(pattern) ~= 1 then
+            if not pattern.path then
+                error("The pattern path is missing")
+            end
+
+            if not pattern.row then
+                error("The pattern row is missing")
+            end
+        end
+
+        patterns[name] = pattern
     end
 end
 
-M.setup {
-    bindings = {
-        ["s"] = M.use_pattern,
-        ["r"] = M.restart,
-        ["]e"] = M.next,
-        ["[e"] = M.prev,
-        ["]E"] = M.next_secondary,
-        ["[E"] = M.prev_secondary,
-        ["<cr>"] = M.open,
-        ["<c-c>"] = M.stop,
-        ["<leftmouse>"] = M.open_mouse_click,
-    },
+do
+    M.setup {
+        bindings = {
+            ["s"] = M.pattern,
+            ["r"] = M.restart,
+            ["]e"] = M.next,
+            ["[e"] = M.prev,
+            ["<cr>"] = M.open,
+            ["<c-c>"] = M.stop,
+            ["<leftmouse>"] = M.open_mouse_click,
+        },
 
-    patterns = {
-        Default = {
-            "[<path>]:[<row>]:[<col>]:",
-            "[<path>]:[<row>]:",
-            use = true
+        patterns = {
+            Default = "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\)"
         }
     }
-}
+
+    pattern = patterns.Default
+end
 
 return M
