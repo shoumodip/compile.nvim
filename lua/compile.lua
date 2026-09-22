@@ -176,6 +176,7 @@ function M.open()
     end
 
     pcall(vim.api.nvim_win_set_cursor, 0, {result.row, result.col})
+    vim.cmd("normal! zz")
 end
 
 function M.open_mouse_click()
