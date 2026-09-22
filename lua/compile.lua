@@ -65,10 +65,12 @@ function M.start(cmd)
 
     local previous = nil
     if is_open() then
-        if vim.fn.bufwinid(M.buffer) == -1 then
+        local window = vim.fn.bufwinid(M.buffer)
+        if window == -1 then
             vim.api.nvim_buf_delete(M.buffer, {force = true})
         else
             previous = M.buffer
+            vim.api.nvim_set_current_win(window)
         end
     end
 
