@@ -45,10 +45,7 @@ local function apply_highlights()
     vim.api.nvim_buf_call(M.buffer, function ()
         vim.cmd(string.format([[
             syntax clear
-            syntax match String '\%%1l`.*`'
-            syntax match Keyword '\%%1l^Executing\>'
-            syntax match ErrorMsg '^\[Process exited \d\+\]$'
-            syntax match Function '^\[Process exited 0\]$'
+            syntax match String '\%%1l`.*`$'
             syntax match Underlined /%s/
             syntax match Underlined /%s/
         ]], escape(pattern.secondary), escape(pattern.primary)))
@@ -76,6 +73,7 @@ function M.start(cmd)
 
     local number_before = vim.api.nvim_win_get_option(0, "number")
     local relativenumber_before = vim.api.nvim_win_get_option(0, "relativenumber")
+    local start = vim.uv.hrtime()
 
     vim.cmd("wall")
     if not previous then
@@ -94,10 +92,69 @@ function M.start(cmd)
         vim.api.nvim_buf_delete(previous, {force = true})
     end
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
+    vim.api.nvim_buf_set_option(M.buffer, "filetype", "compilation")
 
     for key, func in pairs(bindings) do
         vim.keymap.set("n", key, func, {buffer = M.buffer, silent = false})
     end
+
+    vim.api.nvim_create_autocmd("TermClose", {
+        buf = M.buffer,
+        callback = function(ev)
+            local duration = (vim.uv.hrtime() - start) / 1e9
+
+            local messages = {{"Compilation "}}
+            if vim.bo[ev.buf].channel == 0 then
+                table.insert(messages, {"exited abnormally", "DiagnosticError"})
+            else
+                if vim.v.event.status == 0 then
+                    table.insert(messages, {"finished", "DiagnosticOk"})
+                else
+                    table.insert(messages, {"exited abnormally", "DiagnosticError"})
+                    table.insert(messages, {" with code "})
+                    table.insert(messages, {tostring(vim.v.event.status), "DiagnosticError"})
+                end
+            end
+
+            local function format_duration(seconds)
+                local hours = math.floor(seconds / 3600)
+                local minutes = math.floor((seconds % 3600) / 60)
+                local secs = seconds % 60
+
+                if hours > 0 then
+                    return string.format("%d hr %d min %.2f sec", hours, minutes, secs)
+                elseif minutes > 0 then
+                    return string.format("%d min %.2f sec", minutes, secs)
+                else
+                    return string.format("%.2f sec", secs)
+                end
+            end
+
+            local hours = math.floor(duration / 3600)
+            local minutes = math.floor((duration % 3600) / 60)
+            local seconds = duration % 60
+
+            local duration = ""
+            if hours > 0 then
+                duration = string.format("%s%dh", duration, hours)
+            end
+
+            if minutes > 0 or (hours > 0 and seconds > 0) then
+                duration = string.format("%s %dm", duration, minutes)
+            end
+
+            if seconds > 0 then
+                duration = string.format("%s %.2gs", duration, seconds)
+            end
+            table.insert(messages, {string.format(" in %s", vim.trim(duration))})
+
+            local ns = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
+            vim.api.nvim_buf_set_extmark(ev.buf, ns, ev.data.pos, 0, {
+                virt_text = messages,
+                virt_text_pos = "overlay",
+            })
+        end
+    })
 
     apply_highlights()
 end
