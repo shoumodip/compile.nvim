@@ -1,5 +1,5 @@
 # compile.nvim
-![Screenshot](img/shot.png)
+![Screenshot](img/demo.png)
 
 Compilation integration for Neovim
 
