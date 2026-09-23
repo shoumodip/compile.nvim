@@ -102,16 +102,14 @@ function M.start(cmd)
         callback = function(ev)
             local duration = (vim.uv.hrtime() - start) / 1e9
 
-            local messages = {{"Compilation "}}
+            local message = nil
             if vim.bo[ev.buf].channel == 0 then
-                table.insert(messages, {"exited abnormally", "DiagnosticError"})
+                message = "Compilation exited abnormally"
             else
                 if vim.v.event.status == 0 then
-                    table.insert(messages, {"finished", "DiagnosticOk"})
+                    message = "Compilation finished"
                 else
-                    table.insert(messages, {"exited abnormally", "DiagnosticError"})
-                    table.insert(messages, {" with code "})
-                    table.insert(messages, {tostring(vim.v.event.status), "DiagnosticError"})
+                    message = string.format("Compilation exited abnormally with code %d", vim.v.event.status)
                 end
             end
 
@@ -129,15 +127,30 @@ function M.start(cmd)
             end
 
             if seconds > 0 then
-                duration = string.format("%s %.2gs", duration, seconds)
+                duration = string.format("%s %.2fs", duration, seconds)
             end
-            table.insert(messages, {string.format(" in %s", vim.trim(duration))})
+            message = {string.format("%s in %s", message, vim.trim(duration))}
 
-            local ns = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
-            vim.api.nvim_buf_set_extmark(ev.buf, ns, ev.data.pos, 0, {
-                virt_text = messages,
-                virt_text_pos = "overlay",
-            })
+            local ns  = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
+            local pos = ev.data.pos
+
+            for _, it in ipairs(vim.api.nvim_buf_get_extmarks(M.buffer, ns, 0, -1, {})) do
+                vim.api.nvim_buf_del_extmark(M.buffer, ns, it[1])
+            end
+
+            if vim.api.nvim_buf_get_lines(M.buffer, pos - 1, pos, false)[1] ~= "" then
+                table.insert(message, 1, "")
+            end
+
+            vim.bo[M.buffer].modifiable = true
+            vim.api.nvim_buf_set_lines(M.buffer, pos, pos, false, message)
+            vim.bo[M.buffer].modifiable = false
+
+            vim.cmd(string.format([[
+                syntax match DiagnosticOk    /\%%>%dl\<finished\>/
+                syntax match DiagnosticError /\%%>%dl\<exited abnormally\>/
+                syntax match DiagnosticError /\%%>%dl\<with code \d\+\>/hs=s+10
+            ]], pos, pos, pos))
         end
     })
 
@@ -194,26 +207,15 @@ function M.open()
     end
 
     local path = result[1]
-    local row  = result[2]
-    if row then
-        row = tonumber(row)
-    else
-        row = 1
-    end
-
-    local col  = result[3]
-    if col then
-        col = tonumber(col) - 1
-    else
-        col = 0
-    end
+    local row  = result[2] == "" and 1 or tonumber(result[2])
+    local col  = (result[3] == "" and 1 or tonumber(result[3])) - 1
 
     vim.cmd([[
         normal! zz
         wincmd p
     ]])
-    edit_file(path)
 
+    edit_file(path)
     if row == vim.fn.line("$") + 1 then
         row = row - 1
         col = #vim.fn.getline("$") - 1
@@ -356,7 +358,7 @@ do
         },
 
         patterns = {
-            Default = "\\(\\f\\+\\):\\(\\d\\+\\):\\(\\d\\+\\)"
+            Default = [[\(\f\+\):\(\d\+\):\(\d\+\)]]
         }
     }
 

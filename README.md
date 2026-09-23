@@ -48,13 +48,13 @@ compile.setup {
 
     patterns = {
         -- A string can be provided as the pattern
-        Odin = "\\(\\f\\+\\)(\\(\\d\\+\\):\\(\\d\\+\\))",
+        Odin = [[\(\f\+\)(\(\d\+\):\(\d\+\))]],
 
         -- By default, the submatches 1, 2, and 3 are considered the path, row, and column respectively.
         -- But you can customize that.
         Foo = {
             -- The hypothetical foo compiler emits diagnostics as "COLUMN -- PATH:ROW"
-            "\\(\\d\\+\\) -- \\(\\f\\+\\):\\(\\d\\+\\)",
+            [[\(\d\+\) -- \(\f\+\):\(\d\+\)]],
             col = 1,  -- The first submatch
             path = 2, -- The second submatch
             row = 3,  -- The third submatch
