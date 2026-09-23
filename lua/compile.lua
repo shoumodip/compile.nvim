@@ -81,7 +81,7 @@ function M.start(cmd)
         vim.cmd("split")
     end
 
-    vim.cmd("terminal echo Executing \\`"..vim.fn.shellescape(cmd).."\\`; echo; "..cmd)
+    vim.cmd.terminal(cmd)
     vim.api.nvim_win_set_option(0, "cursorline", true)
 
     vim.api.nvim_win_set_option(0, "number", number_before)
@@ -92,6 +92,12 @@ function M.start(cmd)
     if previous then
         vim.api.nvim_buf_delete(previous, {force = true})
     end
+
+    vim.b[M.buffer].compile_nvim_cmd    = cmd
+    vim.b[M.buffer].compile_nvim_done   = false
+    vim.b[M.buffer].compile_nvim_active = true
+    vim.b[M.buffer].compile_nvim_status = 0
+
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
     vim.api.nvim_buf_set_option(M.buffer, "filetype", "compilation")
 
@@ -104,14 +110,19 @@ function M.start(cmd)
         callback = function(ev)
             local duration = (vim.uv.hrtime() - start) / 1e9
 
-            local message = nil
+            local message = {{"Compilation "}}
             if vim.bo[ev.buf].channel == 0 then
-                message = "Compilation exited abnormally"
+                table.insert(message, {"exited abnormally", "DiagnosticError"})
+                vim.b[M.buffer].compile_nvim_status = 1
             else
                 if vim.v.event.status == 0 then
-                    message = "Compilation finished"
+                    table.insert(message, {"finished", "DiagnosticOk"})
+                    vim.b[M.buffer].compile_nvim_status = 0
                 else
-                    message = string.format("Compilation exited abnormally with code %d", vim.v.event.status)
+                    table.insert(message, {"exited abnormally", "DiagnosticError"})
+                    table.insert(message, {" with code "})
+                    table.insert(message, {tostring(vim.v.event.status), "DiagnosticError"})
+                    vim.b[M.buffer].compile_nvim_status = vim.v.event.status
                 end
             end
 
@@ -131,28 +142,20 @@ function M.start(cmd)
             if seconds > 0 then
                 duration = string.format("%s %.2fs", duration, seconds)
             end
-            message = {string.format("%s in %s", message, vim.trim(duration))}
 
-            local ns  = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
-            local pos = ev.data.pos
+            table.insert(message, {string.format(" in %s", vim.trim(duration))})
+            if M.notify then
+                vim.api.nvim_echo(message, false, {})
+            end
 
+            local ns = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
             for _, it in ipairs(vim.api.nvim_buf_get_extmarks(M.buffer, ns, 0, -1, {})) do
                 vim.api.nvim_buf_del_extmark(M.buffer, ns, it[1])
             end
 
-            if vim.api.nvim_buf_get_lines(M.buffer, pos - 1, pos, false)[1] ~= "" then
-                table.insert(message, 1, "")
-            end
-
-            vim.bo[M.buffer].modifiable = true
-            vim.api.nvim_buf_set_lines(M.buffer, pos, pos, false, message)
-            vim.bo[M.buffer].modifiable = false
-
-            vim.cmd(string.format([[
-                syntax match DiagnosticOk    /\%%>%dl\<finished\>/
-                syntax match DiagnosticError /\%%>%dl\<exited abnormally\>/
-                syntax match DiagnosticError /\%%>%dl\<with code \d\+\>/hs=s+10
-            ]], pos, pos, pos))
+            vim.b[M.buffer].compile_nvim_done     = true
+            vim.b[M.buffer].compile_nvim_active   = false
+            vim.b[M.buffer].compile_nvim_duration = duration
         end
     })
 
@@ -303,6 +306,7 @@ function M.bind(bs)
 end
 
 function M.setup(opts)
+    M.notify = opts.notify
     M.bind(opts.bindings)
     for name, pattern in pairs(opts.patterns or {}) do
         if type(pattern) == "string" then
@@ -349,6 +353,8 @@ end
 
 do
     M.setup {
+        notify = true,
+
         bindings = {
             ["s"] = M.pattern,
             ["r"] = M.restart,
