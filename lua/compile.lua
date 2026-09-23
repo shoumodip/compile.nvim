@@ -94,7 +94,6 @@ function M.start(cmd)
     end
 
     vim.b[M.buffer].compile_nvim_cmd    = cmd
-    vim.b[M.buffer].compile_nvim_done   = false
     vim.b[M.buffer].compile_nvim_active = true
     vim.b[M.buffer].compile_nvim_status = 0
 
@@ -153,7 +152,6 @@ function M.start(cmd)
                 vim.api.nvim_buf_del_extmark(M.buffer, ns, it[1])
             end
 
-            vim.b[M.buffer].compile_nvim_done     = true
             vim.b[M.buffer].compile_nvim_active   = false
             vim.b[M.buffer].compile_nvim_duration = duration
         end
