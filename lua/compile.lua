@@ -53,7 +53,9 @@ end
 
 function M.start(cmd)
     if not cmd or cmd == "" then
-        _, cmd = pcall(vim.fn.input, "Compile: ")
+        vim.cmd("echohl Question")
+        _, cmd = pcall(vim.fn.input, "Compile: ", "", "shellcmdline")
+        vim.cmd("echohl Normal | mode")
         if cmd == "" then
             return
         end
