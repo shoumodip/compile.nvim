@@ -51,7 +51,48 @@ local function apply_highlights()
     end)
 end
 
+local function compile_driver_if_needed()
+    local root   = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
+    local source = root.."/driver/driver.c"
+    local binary = root.."/driver/driver.exe"
+
+    local source_stat = vim.uv.fs_stat(source)
+    local binary_stat = vim.uv.fs_stat(binary)
+    if binary_stat and not (
+        source_stat.mtime.sec > binary_stat.mtime.sec
+        or (
+            source_stat.mtime.sec == binary_stat.mtime.sec
+            and source_stat.mtime.nsec > binary_stat.mtime.nsec
+        )
+    ) then return binary end
+
+    vim.notify("[compile.nvim] Compiling driver", vim.log.levels.INFO)
+    local result
+    if vim.fn.has("win32") == 1 then
+        result = vim.system({"cl.exe", "/nologo", "/Fe:"..binary, source}):wait()
+    else
+        result = vim.system({"cc", "-o", binary, source, "-lm"}):wait()
+    end
+
+    if result.code ~= 0 then
+        vim.notify(
+            "[compile.nvim] Failed to compile driver. Make sure a C SDK is available, or compile it manually:\n"..
+            "\n"..
+            "    $ cd "..root.."\n"..
+            "    $ cc -o driver/driver.exe driver/driver.c -lm  # If on Linux/macOS\n"..
+            "    $ cl.exe /Fe:driver/driver.exe driver/driver.c # If on Windows\n"
+            , vim.log.levels.ERROR)
+        return null
+    end
+    return binary
+end
+
 function M.start(cmd)
+    local binary = compile_driver_if_needed()
+    if not binary then
+        return
+    end
+
     if not cmd or cmd == "" then
         vim.cmd("echohl Question")
         _, cmd = pcall(vim.fn.input, "Compile: ", "", "shellcmdline")
@@ -81,22 +122,17 @@ function M.start(cmd)
         vim.cmd("split")
     end
 
-    vim.cmd.terminal(cmd)
-    vim.api.nvim_win_set_option(0, "cursorline", true)
+    M.cmd = cmd
+    M.buffer = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_set_current_buf(M.buffer)
 
+    vim.fn.jobstart({binary, M.cmd}, {term = true})
+    vim.api.nvim_win_set_option(0, "cursorline", true)
     vim.api.nvim_win_set_option(0, "number", number_before)
     vim.api.nvim_win_set_option(0, "relativenumber", relativenumber_before)
-
-    M.cmd = cmd
-    M.buffer = vim.api.nvim_get_current_buf()
     if previous then
         vim.api.nvim_buf_delete(previous, {force = true})
     end
-
-    vim.b[M.buffer].compile_nvim_cmd    = cmd
-    vim.b[M.buffer].compile_nvim_active = true
-    vim.b[M.buffer].compile_nvim_status = 0
-
     vim.api.nvim_buf_set_name(M.buffer, "*compilation*")
     vim.api.nvim_buf_set_option(M.buffer, "filetype", "compilation")
 
@@ -107,53 +143,24 @@ function M.start(cmd)
     vim.api.nvim_create_autocmd("TermClose", {
         buf = M.buffer,
         callback = function(ev)
-            local duration = (vim.uv.hrtime() - start) / 1e9
-
-            local message = {{"Compilation "}}
-            if vim.bo[ev.buf].channel == 0 then
-                table.insert(message, {"exited abnormally", "DiagnosticError"})
-                vim.b[M.buffer].compile_nvim_status = 1
-            else
-                if vim.v.event.status == 0 then
-                    table.insert(message, {"finished", "DiagnosticOk"})
-                    vim.b[M.buffer].compile_nvim_status = 0
-                else
-                    table.insert(message, {"exited abnormally", "DiagnosticError"})
-                    table.insert(message, {" with code "})
-                    table.insert(message, {tostring(vim.v.event.status), "DiagnosticError"})
-                    vim.b[M.buffer].compile_nvim_status = vim.v.event.status
-                end
-            end
-
-            local hours = math.floor(duration / 3600)
-            local minutes = math.floor((duration % 3600) / 60)
-            local seconds = duration % 60
-
-            local duration = ""
-            if hours > 0 then
-                duration = string.format("%s%dh", duration, hours)
-            end
-
-            if minutes > 0 or (hours > 0 and seconds > 0) then
-                duration = string.format("%s %dm", duration, minutes)
-            end
-
-            if seconds > 0 then
-                duration = string.format("%s %.2fs", duration, seconds)
-            end
-
-            table.insert(message, {string.format(" in %s", vim.trim(duration))})
-            if M.notify then
-                vim.api.nvim_echo(message, false, {})
-            end
-
             local ns = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
             for _, it in ipairs(vim.api.nvim_buf_get_extmarks(M.buffer, ns, 0, -1, {})) do
                 vim.api.nvim_buf_del_extmark(M.buffer, ns, it[1])
             end
 
-            vim.b[M.buffer].compile_nvim_active   = false
-            vim.b[M.buffer].compile_nvim_duration = duration
+            local row   = ev.data.pos
+            local lines = vim.api.nvim_buf_get_lines(M.buffer, ev.data.pos - 2, ev.data.pos, false)
+            if lines[2] == "" then
+                row = row - 1
+            end
+
+            vim.api.nvim_buf_call(M.buffer, function ()
+                vim.cmd(string.format([[
+                    syntax match DiagnosticOk    '\%%%dl\<finished\>'
+                    syntax match DiagnosticError '\%%%dl\<exited abnormally\>'
+                    syntax match DiagnosticError '\%%%dl\<code \d\+'hs=s+5
+                ]], row, row, row))
+            end)
         end
     })
 
@@ -304,7 +311,6 @@ function M.bind(bs)
 end
 
 function M.setup(opts)
-    M.notify = opts.notify
     M.bind(opts.bindings)
     for name, pattern in pairs(opts.patterns or {}) do
         if type(pattern) == "string" then
@@ -351,8 +357,6 @@ end
 
 do
     M.setup {
-        notify = true,
-
         bindings = {
             ["s"] = M.pattern,
             ["r"] = M.restart,
