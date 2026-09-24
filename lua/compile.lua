@@ -126,7 +126,18 @@ function M.start(cmd)
     M.buffer = vim.api.nvim_create_buf(true, false)
     vim.api.nvim_set_current_buf(M.buffer)
 
-    vim.fn.jobstart({binary, M.cmd}, {term = true})
+    M.job = vim.fn.jobstart({binary, M.cmd}, {
+        term = true,
+        on_exit = function ()
+            M.job = nil
+            if M.timer and not M.timer:is_closing() then
+                M.timer:stop()
+                M.timer:close()
+                M.timer = nil
+            end
+        end
+    })
+
     vim.api.nvim_win_set_option(0, "cursorline", true)
     vim.api.nvim_win_set_option(0, "number", number_before)
     vim.api.nvim_win_set_option(0, "relativenumber", relativenumber_before)
@@ -267,8 +278,16 @@ function M.restart()
 end
 
 function M.stop()
-    if is_open() then
-        vim.fn.jobstop(vim.b[M.buffer].terminal_job_id)
+    if is_open() and M.job then
+        local pid = vim.fn.jobpid(M.job)
+        vim.uv.kill(-pid, "sigint")
+        M.timer = vim.defer_fn(function()
+            if M.job then
+                vim.uv.kill(-pid, "sigkill")
+            end
+            M.job = nil
+            M.timer = nil
+        end, 3000)
     end
 end
 

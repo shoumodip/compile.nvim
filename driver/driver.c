@@ -5,13 +5,12 @@
 #include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-#define WEXITSTATUS(s) (s)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
 static double now(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef WIN32_LEAN_AND_MEAN
     LARGE_INTEGER frequency, counter;
     if (!QueryPerformanceFrequency(&frequency)) {
         return 0.0;
@@ -27,7 +26,7 @@ static double now(void) {
         return 0.0;
     }
     return clock.tv_sec + clock.tv_nsec * 1e-9;
-#endif // _WIN32
+#endif // WIN32_LEAN_AND_MEAN
 }
 
 int main(int argc, const char **argv) {
@@ -35,9 +34,17 @@ int main(int argc, const char **argv) {
     const char *cmd = argv[1];
 
     fprintf(stderr, "Executing `%s`\n\n", cmd);
-    const double start = now();
-    const int    code = WEXITSTATUS(system(cmd));
-    const double duration = now() - start;
+    double start = now();
+    int    code = system(cmd);
+    double duration = now() - start;
+
+#ifndef WIN32_LEAN_AND_MEAN
+    if (WIFSIGNALED(code)) {
+        code = 128 + WTERMSIG(code);
+    } else {
+        code = WEXITSTATUS(code);
+    }
+#endif // WIN32_LEAN_AND_MEAN
 
     fprintf(stderr, "\nCompilation ");
     if (code == -1) {
@@ -49,9 +56,9 @@ int main(int argc, const char **argv) {
     }
     fprintf(stderr, " in");
 
-    const size_t hours = floor(duration / 3600);
-    const size_t minutes = floor(fmod(duration, 3600) / 60);
-    const double seconds = fmod(duration, 60);
+    size_t hours = floor(duration / 3600);
+    size_t minutes = floor(fmod(duration, 3600) / 60);
+    double seconds = fmod(duration, 60);
 
     if (hours > 0) {
         fprintf(stderr, " %zuh", hours);
